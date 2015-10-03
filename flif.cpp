@@ -26,6 +26,10 @@
 #include <string>
 #include <string.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "maniac/rac.h"
 #include "maniac/compound.h"
 #include "maniac/util.h"
@@ -37,6 +41,7 @@
 
 #include "getopt.h"
 #include <stdarg.h>
+#include <emscripten.h>
 
 
 static FILE *f;  // the compressed file
@@ -980,6 +985,7 @@ bool encode(const char* filename, Images &images, std::vector<std::string> trans
 }
 
 
+bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c);
 
 bool decode(const char* filename, Images &images, int quality, int scale)
 {
@@ -990,6 +996,12 @@ bool decode(const char* filename, Images &images, int quality, int scale)
 
     f = fopen(filename,"r");
     if (!f) { fprintf(stderr,"Could not open file: %s\n",filename); return false; }
+
+    struct stat buf;
+    fstat(fileno(f), &buf);
+    int size = buf.st_size;
+    printf("Size: %d\n", size);
+
     char buff[5];
     if (!fgets(buff,5,f)) { fprintf(stderr,"Could not read header from file: %s\n",filename); return false; }
     if (strcmp(buff,"FLIF")) { fprintf(stderr,"Not a FLIF file: %s\n",filename); return false; }
@@ -1010,8 +1022,11 @@ bool decode(const char* filename, Images &images, int quality, int scale)
     int height=fgetc(f) << 8;
     height += fgetc(f);
     // TODO: implement downscaled decoding without allocating a fullscale image buffer!
+    RacIn rac(f, size / 2);
+    return decodeImpl(rac, images, quality, scale, width, height, encoding, numFrames, numPlanes, c);
+}
 
-    RacIn rac(f);
+bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c) {
     SimpleSymbolCoder<FLIFBitChanceMeta, RacIn, 24> metaCoder(rac);
 
 //    image.init(width, height, 0, 0, 0);
@@ -1209,7 +1224,49 @@ bool file_is_flif(const char * filename){
         return result;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char **argv) {
+  printf("Hello world!\n");
+  const char *fname = "/assets/monkey.flif";
+  Images images;
+  int quality = 100;
+  int scale = 1;
+  if (!decode(fname, images, quality, scale)) return 3;
+  printf("Num decoded images: %d\n", images.size());
+  Image firstImage = images[0];
+  int numPlanes = firstImage.numPlanes();
+  printf("Num decoded planes: %d", numPlanes);
+
+  EM_ASM_({
+    var canvas = document.getElementById('canvas');
+    canvas.width = $0;
+    canvas.height = $1;
+    window.ctx = canvas.getContext('2d');
+    window.imgData = window.ctx.getImageData(0,0,1,$0);
+  }, firstImage.cols(), firstImage.rows());
+      
+  for (int i = 0; i < firstImage.cols(); i++) {
+    for (int j = 0; j < firstImage.rows(); j++) {
+      ColorVal r = firstImage(0, j, i);
+      ColorVal g = firstImage(1, j, i);
+      ColorVal b = firstImage(2, j, i);
+      ColorVal a = numPlanes > 3 ? firstImage(3, i, j) : 255;
+      EM_ASM_({
+        var indx = $4 * 4;
+        var imgData = window.imgData;
+        imgData.data[indx + 0] = $0;
+        imgData.data[indx + 1] = $1;
+        imgData.data[indx + 2] = $2;
+        imgData.data[indx + 3] = $3;
+      }, r, g, b, a, j);
+    }
+    EM_ASM_({
+        window.ctx.putImageData(imgData, $0, 0);
+    }, i);
+      
+  }
+}
+
+int mainx(int argc, char **argv)
 {
     Images images;
     int mode = 0; // 0 = encode, 1 = decode

@@ -188,11 +188,18 @@ class RacFileIO
 {
 private:
     FILE *file;
+    int limit;
+    int count = 0;
 public:
-    RacFileIO(FILE* fil) : file(fil) { }
+    RacFileIO(FILE* fil) : file(fil) { limit = -1;}
+    RacFileIO(FILE* fil, int limitP) : file(fil) { limit = limitP; }
     int read() {
+        if (limit >= 0 && count > limit) {
+          return 0;
+	}
         int r = fgetc(file);
         if (r < 0) return 0;
+        count ++;
         return r;
     }
     void write(int byte) {
@@ -206,6 +213,7 @@ class RacInput40 : public RacInput<RacConfig40, RacFileIO>
 {
 public:
     RacInput40(FILE *file) : RacInput<RacConfig40, RacFileIO>(RacFileIO(file)) { }
+    RacInput40(FILE *file, int limit) : RacInput<RacConfig40, RacFileIO>(RacFileIO(file, limit)) { }
 };
 
 class RacOutput40 : public RacOutput<RacConfig40, RacFileIO>
