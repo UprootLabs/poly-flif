@@ -1,6 +1,10 @@
 # Poly FLIF
 
-A quick attempt to create a poly fill for FLIF, using emscripten.
+A quick attempt to create a poly fill for FLIF in browsers, using emscripten.
+
+Status: Early Alpha. No optimisation, or code hygiene.
+
+[Demo](http://uprootlabs.github.io/poly-flif/)
 
 
 # What is FLIF
