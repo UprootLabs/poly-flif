@@ -648,6 +648,17 @@ void decode_FLIF2_inner_interpol(Images &images, const ColorRanges *ranges, cons
     v_printf(2,"\n");
 }
 
+static int truncatedSize = -1;
+
+bool isEOF(FILE *fp) {
+  if (truncatedSize < 0) {
+    return feof(fp);
+  } else {
+    int loc = ftell(fp);
+    return loc > truncatedSize;
+  }
+}
+
 template<typename Coder> void decode_FLIF2_inner(std::vector<Coder*> &coders, Images &images, const ColorRanges *ranges, const int beginZL, const int endZL, int quality, int scale)
 {
     ColorVal min,max;
@@ -672,7 +683,7 @@ template<typename Coder> void decode_FLIF2_inner(std::vector<Coder*> &coders, Im
       if (z % 2 == 0) {
           for (uint32_t r = 1; r < images[0].rows(z); r += 2) {
 #ifdef CHECK_FOR_BROKENFILES
-            if (feof(f)) {
+            if (isEOF(f)) {
               v_printf(1,"Row %i: Unexpected file end. Interpolation from now on.\n",r);
               decode_FLIF2_inner_interpol(images, ranges, i, beginZL, endZL, (r>1?r-2:r), scale);
               return;
@@ -706,7 +717,7 @@ template<typename Coder> void decode_FLIF2_inner(std::vector<Coder*> &coders, Im
       } else {
           for (uint32_t r = 0; r < images[0].rows(z); r++) {
 #ifdef CHECK_FOR_BROKENFILES
-            if (feof(f)) {
+            if (isEOF(f)) {
               v_printf(1,"Row %i: Unexpected file end. Interpolation from now on.\n", r);
               decode_FLIF2_inner_interpol(images, ranges, i, beginZL, endZL, (r>0?r-1:r), scale);
               return;
@@ -984,7 +995,6 @@ bool encode(const char* filename, Images &images, std::vector<std::string> trans
     return true;
 }
 
-
 bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c);
 
 bool decode(const char* filename, Images &images, int quality, int scale, int truncate)
@@ -1022,7 +1032,8 @@ bool decode(const char* filename, Images &images, int quality, int scale, int tr
     int height=fgetc(f) << 8;
     height += fgetc(f);
     // TODO: implement downscaled decoding without allocating a fullscale image buffer!
-    RacIn rac = truncate == 100 ? RacIn(f) : RacIn(f, size * (truncate/100.0));
+    truncatedSize = truncate == 100 ? -1 : size * (truncate/100.0);
+    RacIn rac = truncate == 100 ? RacIn(f) : RacIn(f, truncatedSize);
     return decodeImpl(rac, images, quality, scale, width, height, encoding, numFrames, numPlanes, c);
 }
 
