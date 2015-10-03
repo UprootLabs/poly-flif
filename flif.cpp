@@ -1289,6 +1289,11 @@ void showImage(Image firstImage) {
     }, i);
       
   }
+
+  EM_ASM({
+    window.ctx = undefined;
+    window.imgData = undefined;
+  });
 }
 
 int mainx(int argc, char **argv)
