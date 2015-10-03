@@ -987,7 +987,7 @@ bool encode(const char* filename, Images &images, std::vector<std::string> trans
 
 bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c);
 
-bool decode(const char* filename, Images &images, int quality, int scale)
+bool decode(const char* filename, Images &images, int quality, int scale, int truncate)
 {
     if (scale != 1 && scale != 2 && scale != 4 && scale != 8 && scale != 16 && scale != 32 && scale != 64 && scale != 128) {
                 fprintf(stderr,"Invalid scale down factor: %i\n", scale);
@@ -1022,7 +1022,7 @@ bool decode(const char* filename, Images &images, int quality, int scale)
     int height=fgetc(f) << 8;
     height += fgetc(f);
     // TODO: implement downscaled decoding without allocating a fullscale image buffer!
-    RacIn rac(f, size / 2);
+    RacIn rac = truncate == 100 ? RacIn(f) : RacIn(f, size * (truncate/100.0));
     return decodeImpl(rac, images, quality, scale, width, height, encoding, numFrames, numPlanes, c);
 }
 
@@ -1180,6 +1180,10 @@ bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, in
     rangesList.clear();
 
     fclose(f);
+
+    pixels_todo = 0;
+    pixels_done = 0;
+
     return true;
 }
 
@@ -1224,15 +1228,25 @@ bool file_is_flif(const char * filename){
         return result;
 }
 
-int main(int argc, char **argv) {
+void showImage(Image firstImage);
+
+extern "C" {
+
+int mainy(int truncate, const char *fname) {
   printf("Hello world!\n");
-  const char *fname = "/assets/monkey.flif";
   Images images;
   int quality = 100;
   int scale = 1;
-  if (!decode(fname, images, quality, scale)) return 3;
+  if (!decode(fname, images, quality, scale, truncate)) return 3;
   printf("Num decoded images: %d\n", images.size());
   Image firstImage = images[0];
+  showImage(firstImage);
+  return 0;
+}
+
+}
+
+void showImage(Image firstImage) {
   int numPlanes = firstImage.numPlanes();
   printf("Num decoded planes: %d", numPlanes);
 
@@ -1249,7 +1263,7 @@ int main(int argc, char **argv) {
       ColorVal r = firstImage(0, j, i);
       ColorVal g = firstImage(1, j, i);
       ColorVal b = firstImage(2, j, i);
-      ColorVal a = numPlanes > 3 ? firstImage(3, i, j) : 255;
+      ColorVal a = numPlanes > 3 ? firstImage(3, j, i) : 255;
       EM_ASM_({
         var indx = $4 * 4;
         var imgData = window.imgData;
@@ -1441,7 +1455,7 @@ int mainx(int argc, char **argv)
            fprintf(stderr,"Error: expected \".png\", \".pnm\" or \".pam\" file name extension for output file\n");
            return 1;
         }
-        if (!decode(argv[0], images, quality, scale)) return 3;
+        if (!decode(argv[0], images, quality, scale, 100)) return 3;
         if (scale>1)
           v_printf(3,"Downscaling output: %ux%u -> %ux%u\n",images[0].cols(),images[0].rows(),images[0].cols()/scale,images[0].rows()/scale);
         if (images.size() == 1) {
