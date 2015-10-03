@@ -7,6 +7,12 @@ Status: Early Alpha. No optimisation, or code hygiene.
 [Demo](https://uprootlabs.github.io/poly-flif/)
 
 
+# Roadmap
+
+* Load image data asynchronously. [#1](https://github.com/UprootLabs/poly-flif/issues/1)
+* Support animations. [#2](https://github.com/UprootLabs/poly-flif/issues/2)
+* Fix memory leaks. [#3](https://github.com/UprootLabs/poly-flif/issues/3)
+
 # What is FLIF
 
 FLIF is a lossless image format based on MANIAC compression. MANIAC (Meta-Adaptive Near-zero Integer Arithmetic Coding) is a variant of CABAC (context-adaptive binary arithmetic coding), where the contexts are nodes of decision trees which are dynamically learned at encode time.
