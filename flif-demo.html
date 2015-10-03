@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Flif demo</title>
+    <style>
+      body {
+        font-family: arial;
+        margin: 0;
+        padding: none;
+      }
+
+      .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
+      div.emscripten { text-align: center; }      
+      div.emscripten_border { border: 1px solid lightgrey; padding: 1em; }
+      /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+      canvas.emscripten { border: 0px none; }
+
+      .spinner {
+        height: 30px;
+        width: 30px;
+        margin: 0;
+        margin-top: 20px;
+        margin-left: 20px;
+        display: inline-block;
+        vertical-align: middle;
+
+        animation: rotation 0.8s linear infinite;
+
+        border-left: 5px solid rgb(235, 235, 235);
+        border-right: 5px solid rgb(235, 235, 235);
+        border-bottom: 5px solid rgb(235, 235, 235);
+        border-top: 5px solid rgb(120, 120, 120);
+        
+        border-radius: 100%;
+        background-color: rgb(189, 215, 46);
+      }
+
+      @keyframes rotation {
+        from {transform: rotate(0deg);}
+        to {transform: rotate(360deg);}
+      }
+
+      #status {
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 20px;
+        font-weight: bold;
+        color: rgb(120, 120, 120);
+      }
+
+      #progress {
+        height: 20px;
+        width: 30px;
+      }
+
+      #controls {
+	padding: 1em;
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      #controls input {
+        vertical-align: middle;
+      }
+
+      #output {
+        width: 100%;
+        height: 200px;
+        margin: 0 auto;
+        border-left: 0px;
+        border-right: 0px;
+        padding-left: 0px;
+        padding-right: 0px;
+        display: block;
+        background-color: black;
+        color: white;
+        font-family: 'Lucida Console', Monaco, monospace;
+        outline: none;
+        display:none;
+      }
+      #aboutModal {
+        position:absolute;
+        left:25%;
+        right:25%;
+        top:15%;
+	display:none;
+	padding: 1em 2em;
+	background: lightgrey;
+	border: 8px solid grey;
+      }
+      #aboutModal.visible { display: block }
+      .closeButton {text-align: right; margin:0;}
+      #controls .header {padding: 1em; background: grey; color: white }
+      #credits { text-align: center }
+      #credits a { color: grey }
+      #controls label { color: grey }
+    </style>
+  </head>
+  <body>
+    <a href="http://emscripten.org"> </a>
+
+    <div class="spinner" id='spinner'></div>
+    <span id='controls'>
+      <form onsubmit="return false" oninput="level.value = tlevel.valueAsNumber">
+        <span class="header">Poly-FLIF demo <input type="button" value="?" onclick="showAbout()"></input></span>
+        <label for="imageSelect">Image: </label>
+	<select id="imageSelect" onchange="imageChanged()">
+	  <option value="value0" selected disabled>Choose one ...</option> 
+	  <option value="value1">watch 497 x 331</option> 
+	  <option value="value2">1webp transparent 400 x 301</option> 
+	  <option value="value3">2webp transparent 386 x 395</option> 
+	  <option value="value3">monkey 1132 x 849</option> 
+	</select>
+        <label for="truncate">Truncation level: </label>
+        <input name="tlevel" id="truncate" type="range" min="0" max="90" value="0" step="10" onchange="truncateChanged()">
+        <output for="truncate" name="level">0</output>%
+
+        <label for="bgColor">Background color: </label>
+        <input name="bgColor" id="bgColor" type="color" onchange="bgColorChanged()">
+      </form>
+    </span>
+
+    <div class="emscripten" id="status">Downloading...</div>
+
+    <div class="emscripten">
+      <progress value="0" max="100" id="progress" hidden=1></progress>
+    </div>
+
+    
+    <div class="emscripten_border">
+      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+      <p id="credits"></p>
+    </div>
+    <textarea id="output" rows="8"></textarea>
+
+    <div id="aboutModal">
+      <p class="closeButton"><input type="button" value="x" onclick="hideAbout()"></input></p>
+      <h2>About this demo</h2>
+      <p>This is a playground for trying truncation for the new FLIF image format. It is also an early demo of a possible browser polyfill for the format.</p>
+      <h2>About FLIF</h2>
+      <p>FLIF is a lossless image format based on MANIAC compression. MANIAC (Meta-Adaptive Near-zero Integer Arithmetic Coding) is a variant of CABAC (context-adaptive binary arithmetic coding), where the contexts are nodes of decision trees which are dynamically learned at encode time.</p>
+      <p>FLIF outperforms PNG, FFV1, lossless WebP, lossless BPG and lossless JPEG2000 in terms of compression ratio.</p>
+      <p>Note that the FLIF spec is not yet defined completely. And the code is not optimised yet.</p>
+      <p>Do not use this in production.</p>
+
+      <h2>Links</h2>
+      <p>FLIF <a href="http://flif.info">home page.</a> and <a href="https://github.com/jonsneyers/FLIF">source code.</a></p>
+      <p>Poly FLIF <a href="https://github.com/uprootlabs/poly-flif">source code.</a></p>
+    </div>
+    <script type='text/javascript'>
+      function showAbout() {
+        document.getElementById('aboutModal').classList.add('visible');
+      }
+
+      function hideAbout() {
+        document.getElementById('aboutModal').classList.remove('visible');
+      }
+
+      function showProgress() {
+        Module.setStatus("Decoding...");
+      }
+
+      function hideProgress(truncateAmount) {
+        Module.setStatus("Decoded with " + truncateAmount + "% stream");
+      }
+
+      function truncateChanged() {
+        decode();
+      }
+
+      function imageChanged() {
+        decode();
+      }
+
+      function bgColorChanged() {
+        var bgInput = document.getElementById('bgColor');
+	console.log(bgInput.value);
+        document.getElementById("canvas").setAttribute("style",  "background: " + bgInput.value);
+      }
+
+      var imgInfos = [
+         {},
+         {path: "/assets/watch_by8.flif", credit:"https://unsplash.com/veri_ivanova"},
+         {path: "/assets/1_webp_ll.flif"},
+         {path: "/assets/2_webp_ll.flif"},
+         {path: "/assets/monkey.flif", credit:"https://unsplash.com/raf"}
+      ];
+
+      function decode() {
+        var imageSelect = document.getElementById('imageSelect');
+        var imgIdx = imageSelect.selectedIndex;
+        if (imgIdx > 0) {
+          var info = imgInfos[imgIdx];
+          var truncateInput = document.getElementById('truncate');
+          var truncateAmount = 100 - truncateInput.value;
+          if (info.credit) {
+            document.getElementById("credits").innerHTML = "<a href='"+info.credit+"'>Image credit</a>"
+          } else {
+            document.getElementById("credits").innerHTML = "";
+          }
+          showProgress();
+	  setTimeout(function() {
+            Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, info.path]);
+            hideProgress(truncateAmount);
+	  }, 10);
+        }
+      }
+    </script>
+
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var spinnerElement = document.getElementById('spinner');
+
+      var Module = {
+        preRun: [],
+        postRun: [],
+        print: (function() {
+          var element = document.getElementById('output');
+          if (element) element.value = ''; // clear browser cache
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            // These replacements are necessary if you render to raw HTML
+            //text = text.replace(/&/g, "&amp;");
+            //text = text.replace(/</g, "&lt;");
+            //text = text.replace(/>/g, "&gt;");
+            //text = text.replace('\n', '<br>', 'g');
+            console.log(text);
+            if (element) {
+              element.value += text + "\n";
+              element.scrollTop = element.scrollHeight; // focus on bottom
+            }
+          };
+        })(),
+        printErr: function(text) {
+          if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+          if (0) { // XXX disabled for safety typeof dump == 'function') {
+            dump(text + '\n'); // fast, straight to the real console
+          } else {
+            console.error(text);
+          }
+        },
+        canvas: (function() {
+          var canvas = document.getElementById('canvas');
+
+          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+          // application robust, you may want to override this behavior before shipping!
+          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+          canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+          return canvas;
+        })(),
+        setStatus: function(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Date.now() < 30) return; // if this is a progress update, skip it if too soon
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2])*100;
+            progressElement.max = parseInt(m[4])*100;
+            // progressElement.hidden = false;
+            spinnerElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            // progressElement.hidden = true;
+            spinnerElement.hidden = true;
+            if (!text) spinnerElement.style.display = 'none';
+          }
+          statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: function(left) {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      Module.setStatus('Downloading...');
+      window.onerror = function(event) {
+        // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+        Module.setStatus('Exception thrown, see JavaScript console');
+        spinnerElement.style.display = 'none';
+        Module.setStatus = function(text) {
+          if (text) Module.printErr('[post-exception status] ' + text);
+        };
+      };
+    </script>
+    <script>
+
+        (function() {
+          var memoryInitializer = 'flif.html.mem';
+          if (typeof Module['locateFile'] === 'function') {
+            memoryInitializer = Module['locateFile'](memoryInitializer);
+          } else if (Module['memoryInitializerPrefixURL']) {
+            memoryInitializer = Module['memoryInitializerPrefixURL'] + memoryInitializer;
+          }
+          var xhr = Module['memoryInitializerRequest'] = new XMLHttpRequest();
+          xhr.open('GET', memoryInitializer, true);
+          xhr.responseType = 'arraybuffer';
+          xhr.send(null);
+        })();
+
+        var script = document.createElement('script');
+        script.src = "flif.js";
+        document.body.appendChild(script);
+
+</script>
+  </body>
+</html>
