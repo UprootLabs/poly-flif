@@ -26,10 +26,6 @@
 #include <string>
 #include <string.h>
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include "maniac/rac.h"
 #include "maniac/compound.h"
 #include "maniac/util.h"
@@ -46,7 +42,6 @@
 #endif
 
 #include <stdarg.h>
-#include <emscripten.h>
 
 #include "common.h"
 #include "flif-enc.h"
@@ -83,66 +78,6 @@ void v_printf(const int v, const char *format, ...) {
 /******************************************/
 /*   FLIF2 encoding/decoding              */
 /******************************************/
-
-static int truncatedSize = -1;
-
-bool isEOF(FILE *fp) {
-  if (truncatedSize < 0) {
-    return feof(fp);
-  } else {
-    int loc = ftell(fp);
-    return loc > truncatedSize;
-  }
-}
-
-
-bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c);
-
-bool decode(const char* filename, Images &images, int quality, int scale, int truncate)
-{
-    if (scale != 1 && scale != 2 && scale != 4 && scale != 8 && scale != 16 && scale != 32 && scale != 64 && scale != 128) {
-                fprintf(stderr,"Invalid scale down factor: %i\n", scale);
-                return false;
-    }
-
-    f = fopen(filename,"rb");
-    if (!f) { fprintf(stderr,"Could not open file: %s\n",filename); return false; }
-
-    struct stat buf;
-    fstat(fileno(f), &buf);
-    int size = buf.st_size;
-    printf("Size: %d\n", size);
-
-    char buff[5];
-    if (!fgets(buff,5,f)) { fprintf(stderr,"Could not read header from file: %s\n",filename); return false; }
-    if (strcmp(buff,"FLIF")) { fprintf(stderr,"Not a FLIF file: %s\n",filename); return false; }
-    int c = fgetc(f)-' ';
-    int numFrames=1;
-    if (c > 47) {
-        c -= 32;
-        numFrames = fgetc(f);
-    }
-    int encoding=c/16;
-    if (scale != 1 && encoding==1) { v_printf(1,"Cannot decode non-interlaced FLIF file at lower scale! Ignoring scale...\n");}
-    if (quality < 100 && encoding==1) { v_printf(1,"Cannot decode non-interlaced FLIF file at lower quality! Ignoring quality...\n");}
-    int numPlanes=c%16;
-    c = fgetc(f);
-
-    int width=fgetc(f) << 8;
-    width += fgetc(f);
-    int height=fgetc(f) << 8;
-    height += fgetc(f);
-    // TODO: implement downscaled decoding without allocating a fullscale image buffer!
-    truncatedSize = truncate == 100 ? -1 : size * (truncate/100.0);
-    RacIn rac = truncate == 100 ? RacIn(f) : RacIn(f, truncatedSize);
-    return decodeImpl(rac, images, quality, scale, width, height, encoding, numFrames, numPlanes, c);
-}
-
-bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c) {
-    pixels_todo = 0;
-    pixels_done = 0;
-
-}
 
 void show_help() {
     printf("Usage: (encoding)\n");
@@ -182,63 +117,6 @@ bool file_is_flif(const char * filename){
         else if (strcmp(buff,"FLIF")) result=false;
         fclose(file);
         return result;
-}
-
-void showImage(Image firstImage);
-
-extern "C" {
-
-int mainy(int truncate, const char *fname) {
-  printf("Hello world!\n");
-  Images images;
-  int quality = 100;
-  int scale = 1;
-  if (!decode(fname, images, quality, scale, truncate)) return 3;
-  printf("Num decoded images: %d\n", images.size());
-  Image firstImage = images[0];
-  showImage(firstImage);
-  return 0;
-}
-
-}
-
-void showImage(Image firstImage) {
-  int numPlanes = firstImage.numPlanes();
-  printf("Num decoded planes: %d", numPlanes);
-
-  EM_ASM_({
-    var canvas = document.getElementById('canvas');
-    canvas.width = $0;
-    canvas.height = $1;
-    window.ctx = canvas.getContext('2d');
-    window.imgData = window.ctx.getImageData(0,0,1,$0);
-  }, firstImage.cols(), firstImage.rows());
-      
-  for (int i = 0; i < firstImage.cols(); i++) {
-    for (int j = 0; j < firstImage.rows(); j++) {
-      ColorVal r = firstImage(0, j, i);
-      ColorVal g = firstImage(1, j, i);
-      ColorVal b = firstImage(2, j, i);
-      ColorVal a = numPlanes > 3 ? firstImage(3, j, i) : 255;
-      EM_ASM_({
-        var indx = $4 * 4;
-        var imgData = window.imgData;
-        imgData.data[indx + 0] = $0;
-        imgData.data[indx + 1] = $1;
-        imgData.data[indx + 2] = $2;
-        imgData.data[indx + 3] = $3;
-      }, r, g, b, a, j);
-    }
-    EM_ASM_({
-        window.ctx.putImageData(imgData, $0, 0);
-    }, i);
-      
-  }
-
-  EM_ASM({
-    window.ctx = undefined;
-    window.imgData = undefined;
-  });
 }
 
 int mainx(int argc, char **argv)
@@ -416,7 +294,7 @@ int mainx(int argc, char **argv)
            fprintf(stderr,"Error: expected \".png\", \".pnm\" or \".pam\" file name extension for output file\n");
            return 1;
         }
-        if (!decode(argv[0], images, quality, scale, 100)) return 3;
+        if (!decode(argv[0], images, quality, scale)) return 3;
         if (scale>1)
           v_printf(3,"Downscaling output: %ux%u -> %ux%u\n",images[0].cols(),images[0].rows(),images[0].cols()/scale,images[0].rows()/scale);
         if (images.size() == 1) {

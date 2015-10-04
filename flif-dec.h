@@ -3,4 +3,6 @@
 
 bool decode(const char* filename, Images &images, int quality, int scale);
 
+bool decode(const char* filename, Images &images, int quality, int scale, int truncatePercent);
+
 #endif

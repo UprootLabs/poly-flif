@@ -12,6 +12,21 @@
 
 #include "common.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+static int truncatedSize = -1;
+
+bool isEOF(FILE *fp) {
+  if (truncatedSize < 0) {
+    return feof(fp);
+  } else {
+    int loc = ftell(fp);
+    return loc > truncatedSize;
+  }
+}
+
 template<typename RAC> std::string static read_name(RAC& rac)
 {
     UniformSymbolCoder<RAC> coder(rac);
@@ -152,7 +167,7 @@ template<typename Coder> void decode_FLIF2_inner(std::vector<Coder*> &coders, Im
       if (z % 2 == 0) {
           for (uint32_t r = 1; r < images[0].rows(z); r += 2) {
 #ifdef CHECK_FOR_BROKENFILES
-            if (feof(f)) {
+            if (isEOF(f)) {
               v_printf(1,"Row %i: Unexpected file end. Interpolation from now on.\n",r);
               decode_FLIF2_inner_interpol(images, ranges, i, beginZL, endZL, (r>1?r-2:r), scale);
               return;
@@ -186,7 +201,7 @@ template<typename Coder> void decode_FLIF2_inner(std::vector<Coder*> &coders, Im
       } else {
           for (uint32_t r = 0; r < images[0].rows(z); r++) {
 #ifdef CHECK_FOR_BROKENFILES
-            if (feof(f)) {
+            if (isEOF(f)) {
               v_printf(1,"Row %i: Unexpected file end. Interpolation from now on.\n", r);
               decode_FLIF2_inner_interpol(images, ranges, i, beginZL, endZL, (r>0?r-1:r), scale);
               return;
@@ -268,9 +283,9 @@ template<typename BitChance, typename Rac> void decode_tree(Rac &rac, const Colo
     }
 }
 
+bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c);
 
-
-bool decode(const char* filename, Images &images, int quality, int scale)
+bool decode(const char* filename, Images &images, int quality, int scale, int truncatePercent)
 {
     if (scale != 1 && scale != 2 && scale != 4 && scale != 8 && scale != 16 && scale != 32 && scale != 64 && scale != 128) {
                 fprintf(stderr,"Invalid scale down factor: %i\n", scale);
@@ -279,6 +294,12 @@ bool decode(const char* filename, Images &images, int quality, int scale)
 
     f = fopen(filename,"rb");
     if (!f) { fprintf(stderr,"Could not open file: %s\n",filename); return false; }
+
+    struct stat buf;
+    fstat(fileno(f), &buf);
+    int size = buf.st_size;
+    printf("Size: %d\n", size);
+
     char buff[5];
     if (!fgets(buff,5,f)) { fprintf(stderr,"Could not read header from file: %s\n",filename); return false; }
     if (strcmp(buff,"FLIF")) { fprintf(stderr,"Not a FLIF file: %s\n",filename); return false; }
@@ -299,8 +320,16 @@ bool decode(const char* filename, Images &images, int quality, int scale)
     int height=fgetc(f) << 8;
     height += fgetc(f);
     // TODO: implement downscaled decoding without allocating a fullscale image buffer!
+    truncatedSize = truncatePercent == 100 ? -1 : size * (truncatePercent/100.0);
+    RacIn rac = truncatePercent == 100 ? RacIn(f) : RacIn(f, truncatedSize);
+    bool result = decodeImpl(rac, images, quality, scale, width, height, encoding, numFrames, numPlanes, c);
+    pixels_todo = 0;
+    pixels_done = 0;
+    return result;
+}
 
-    RacIn rac(f);
+bool decodeImpl(RacIn rac, Images &images, int quality, int scale, int width, int height, int encoding, int numFrames, int numPlanes, int c)
+{
     SimpleSymbolCoder<FLIFBitChanceMeta, RacIn, 24> metaCoder(rac);
 
 //    image.init(width, height, 0, 0, 0);
@@ -455,6 +484,10 @@ bool decode(const char* filename, Images &images, int quality, int scale)
 
     fclose(f);
     return true;
+}
+
+bool decode(const char* filename, Images &images, int quality, int scale) {
+  return decode(filename, images, quality, scale, 100);
 }
 
 
