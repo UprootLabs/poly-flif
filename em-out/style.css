@@ -10,7 +10,7 @@ body {
 
 .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
 div.emscripten { text-align: center; }      
-div.emscripten_border { border: 1px solid lightgrey; padding: 1em; }
+div.emscripten_border { border: 1px solid lightgrey; padding: 1em; margin: 0 auto;}
 /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
 canvas.emscripten { border: 0px none; }
 
@@ -98,4 +98,39 @@ canvas.emscripten { border: 0px none; }
 #credits { text-align: center }
 #credits a { color: grey }
 #controls label { color: grey }
+
+
+#viewer {
+  position:relative;
+  cursor: ew-resize;
+}
+
+
+#viewer-left, #viewer-right {
+  overflow:hidden;
+}
+
+#viewer-left {
+  position:absolute;
+  top:0;
+  left:0;
+  width:50%;
+}
+
+#viewer-right {
+  position:absolute;
+  top:0;
+  right:0;
+  width:50%;
+  border-left:2px solid rgba(250, 250, 0, 0.5);
+
+}
+
+#viewer-right .wrapper {
+  position:absolute;
+  top:0;
+  right:0;
+}
+
+div.emscripten_border { width: 500px }
 

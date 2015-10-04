@@ -40,9 +40,20 @@
 
     
     <div class="emscripten_border">
-      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-      <p id="credits"></p>
+      <div id="viewer">
+        <div id="viewer-left">
+          <div class="wrapper">
+            <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+          </div>
+        </div>
+        <div id="viewer-right">
+          <div class="wrapper">
+            <img id="pngImg" />
+          </div>
+        </div>
+      </div>
     </div>
+      <p id="credits"></p>
     <textarea id="output" rows="8"></textarea>
 
     <div id="aboutModal">
@@ -62,6 +73,44 @@
 
     </div>
     <script type='text/javascript'>
+      var splitPosition = 0.5;
+      var viewWidth = 0;
+      var viewHeight = 0;
+      function updateViewer(width, height) {
+        function setElementDimension(id, w, h) {
+          var e = document.getElementById(id);
+          e.style.width = ""+w+"px";
+          e.style.height = ""+h+"px";
+        }
+        var leftWidth = Math.floor(width * splitPosition);
+        var rightWidth = width - leftWidth;
+        setElementDimension("viewer", width, height);
+        setElementDimension("viewer-left", leftWidth, height);
+        setElementDimension("viewer-right", rightWidth, height);
+        viewWidth = width;
+        viewHeight = height;
+      }
+
+      function moveSplit(event) {
+        var view = document.getElementById("viewer");
+        var offset = view.getBoundingClientRect();
+        var x = event.clientX - offset.left;
+        var y = event.clientY - offset.top;
+        splitPosition = x / viewWidth;
+        updateViewer(viewWidth, viewHeight);
+/*
+        if (splitTarget.x < 0) splitTarget.x = 0;
+        if (splitTarget.y < textHeight) splitTarget.y = textHeight;
+        if (splitTarget.x >= offset.width) splitTarget.x = offset.width - 1;
+        if (splitTarget.y >= offset.height) splitTarget.y = offset.height - 1;
+        setSplit();
+*/
+        
+        return false;
+      }
+
+      document.getElementById("viewer").addEventListener("mousemove", moveSplit, false);
+
       function showAbout() {
         document.getElementById('aboutModal').classList.add('visible');
       }
@@ -86,11 +135,11 @@
 
       var imgInfos = [
          {},
-         {path: "assets/watch_by8.flif", credit:"https://unsplash.com/veri_ivanova"},
-         {path: "assets/1_webp_ll.flif"},
-         {path: "assets/2_webp_ll.flif"},
-         {path: "assets/3_webp_ll.flif"},
-         {path: "assets/monkey.flif", credit:"https://unsplash.com/raf"}
+         {name: "watch_by8", credit:"https://unsplash.com/veri_ivanova"},
+         {name: "1_webp_ll"},
+         {name: "2_webp_ll"},
+         {name: "3_webp_ll"},
+         {name: "monkey", credit:"https://unsplash.com/raf"}
       ];
 
       function fileExists(path) {
@@ -133,11 +182,31 @@
         }
       }
 
+      function decodePng() {
+        updateViewer(497, 331);
+        var truncateInput = document.getElementById('truncate');
+        var truncateAmount = 100 - truncateInput.value;
+
+        var imageSelect = document.getElementById('imageSelect');
+        var imgIdx = imageSelect.selectedIndex;
+        var path = "assets/"+imgInfos[imgIdx].name+"-i.png";
+        getURLAsBytes(path, function (content) {
+          var blob = new Blob([content], {type: 'image/png'});
+          if (truncateAmount != 100) {
+            var truncatedSize =  Math.floor(content.length * (truncateAmount / 100));
+            blob = blob.slice(0, truncatedSize);
+          }
+          var burl = URL.createObjectURL(blob);
+          document.getElementById('pngImg').src = burl;
+        });
+      }
+
       function decode() {
+        decodePng();
         ensureDir("/assets");
         var imageSelect = document.getElementById('imageSelect');
         var imgIdx = imageSelect.selectedIndex;
-        var path = imgInfos[imgIdx].path;
+        var path = "assets/"+imgInfos[imgIdx].name+".flif";
         loadFile("/" + path, path, function () {
           decodeSync(imgIdx);
         });
@@ -155,7 +224,7 @@
           }
           Module.setStatus("Decoding...");
 	  setTimeout(function() {
-            Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, info.path]);
+            Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, "/assets/"+info.name+".flif"]);
             Module.setStatus("Decoded with " + truncateAmount + "% stream");
 	  }, 10);
         }
