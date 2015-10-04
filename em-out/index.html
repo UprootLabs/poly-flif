@@ -94,11 +94,11 @@
 
       var imgInfos = [
          {},
-         {path: "/assets/watch_by8.flif", credit:"https://unsplash.com/veri_ivanova"},
-         {path: "/assets/1_webp_ll.flif"},
-         {path: "/assets/2_webp_ll.flif"},
-         {path: "/assets/3_webp_ll.flif"},
-         {path: "/assets/monkey.flif", credit:"https://unsplash.com/raf"}
+         {path: "assets/watch_by8.flif", credit:"https://unsplash.com/veri_ivanova"},
+         {path: "assets/1_webp_ll.flif"},
+         {path: "assets/2_webp_ll.flif"},
+         {path: "assets/3_webp_ll.flif"},
+         {path: "assets/monkey.flif", credit:"https://unsplash.com/raf"}
       ];
 
       function fileExists(path) {
@@ -140,7 +140,7 @@
         var imageSelect = document.getElementById('imageSelect');
         var imgIdx = imageSelect.selectedIndex;
         var path = imgInfos[imgIdx].path;
-        loadFile(path, path, function () {
+        loadFile("/" + path, path, function () {
           decodeSync(imgIdx);
         });
       }
