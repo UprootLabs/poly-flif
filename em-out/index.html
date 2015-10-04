@@ -39,17 +39,19 @@
     </div>
 
     
-    <div class="emscripten_border">
+    <div class="emscripten_border viewer-parent">
       <div id="viewer">
         <div id="viewer-left">
           <div class="wrapper">
             <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
           </div>
+          <div id="left-info">FLIF</div>
         </div>
         <div id="viewer-right">
           <div class="wrapper">
             <img id="pngImg" />
           </div>
+          <div id="right-info">PNG</div>
         </div>
       </div>
     </div>
@@ -77,16 +79,17 @@
       var viewWidth = 0;
       var viewHeight = 0;
       function updateViewer(width, height) {
-        function setElementDimension(id, w, h) {
-          var e = document.getElementById(id);
+        function setElementDimension(query, w, h) {
+          var e = document.querySelector(query);
           e.style.width = ""+w+"px";
           e.style.height = ""+h+"px";
         }
         var leftWidth = Math.floor(width * splitPosition);
         var rightWidth = width - leftWidth;
-        setElementDimension("viewer", width, height);
-        setElementDimension("viewer-left", leftWidth, height);
-        setElementDimension("viewer-right", rightWidth, height);
+        setElementDimension("#viewer", width, height);
+        setElementDimension("#viewer-left", leftWidth, height);
+        setElementDimension("#viewer-right", rightWidth, height);
+        setElementDimension(".viewer-parent", width, height);
         viewWidth = width;
         viewHeight = height;
       }
@@ -98,14 +101,12 @@
         var y = event.clientY - offset.top;
         splitPosition = x / viewWidth;
         updateViewer(viewWidth, viewHeight);
-/*
-        if (splitTarget.x < 0) splitTarget.x = 0;
-        if (splitTarget.y < textHeight) splitTarget.y = textHeight;
-        if (splitTarget.x >= offset.width) splitTarget.x = offset.width - 1;
-        if (splitTarget.y >= offset.height) splitTarget.y = offset.height - 1;
-        setSplit();
-*/
-        
+        function setElementTop(query, t) {
+          var e = document.querySelector(query);
+          e.style.top = ""+t+"px";
+        }
+        setElementTop("#left-info", y);
+        setElementTop("#right-info", y);
         return false;
       }
 
@@ -135,11 +136,11 @@
 
       var imgInfos = [
          {},
-         {name: "watch_by8", credit:"https://unsplash.com/veri_ivanova"},
-         {name: "1_webp_ll"},
-         {name: "2_webp_ll"},
-         {name: "3_webp_ll"},
-         {name: "monkey", credit:"https://unsplash.com/raf"}
+         {name: "watch_by8", width:497, height: 331, credit:"https://unsplash.com/veri_ivanova"},
+         {name: "1_webp_ll", width:400, height: 301},
+         {name: "2_webp_ll", width:386, height: 395},
+         {name: "3_webp_ll", width:800, height: 600},
+         {name: "monkey",    width:1132, height: 849, credit:"https://unsplash.com/raf"}
       ];
 
       function fileExists(path) {
@@ -183,13 +184,14 @@
       }
 
       function decodePng() {
-        updateViewer(497, 331);
         var truncateInput = document.getElementById('truncate');
         var truncateAmount = 100 - truncateInput.value;
 
         var imageSelect = document.getElementById('imageSelect');
         var imgIdx = imageSelect.selectedIndex;
-        var path = "assets/"+imgInfos[imgIdx].name+"-i.png";
+        var imgInfo = imgInfos[imgIdx];
+        updateViewer(imgInfo.width, imgInfo.height);
+        var path = "assets/"+imgInfo.name+"-i.png";
         getURLAsBytes(path, function (content) {
           var blob = new Blob([content], {type: 'image/png'});
           if (truncateAmount != 100) {
