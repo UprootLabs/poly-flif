@@ -102,20 +102,26 @@
         }
       }
 
-      function loadFile(path, url, andThen) {
-        if (fileExists(path)) {
-          andThen();
-        } else {
-          Module.setStatus("Loading...");
+      function getURLAsBytes(url, andThen) {
           var xhr = new XMLHttpRequest();
           xhr.responseType = "arraybuffer";
           xhr.open("GET", url);
           xhr.onload = function() {
             var content = new Uint8Array(this.response);
-            FS.writeFile(path, content, {encoding:"binary"})
-            andThen();
+            andThen(content);
           };
           xhr.send();
+      }
+
+      function loadFile(path, url, andThen) {
+        if (fileExists(path)) {
+          andThen();
+        } else {
+          Module.setStatus("Loading...");
+          getURLAsBytes(url, function(content) {
+            FS.writeFile(path, content, {encoding:"binary"})
+            andThen();
+          });
         }
       }
 
