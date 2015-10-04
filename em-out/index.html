@@ -70,14 +70,6 @@
         document.getElementById('aboutModal').classList.remove('visible');
       }
 
-      function showProgress() {
-        Module.setStatus("Decoding...");
-      }
-
-      function hideProgress(truncateAmount) {
-        Module.setStatus("Decoded with " + truncateAmount + "% stream");
-      }
-
       function truncateChanged() {
         decode();
       }
@@ -155,10 +147,10 @@
           } else {
             document.getElementById("credits").innerHTML = "";
           }
-          showProgress();
+          Module.setStatus("Decoding...");
 	  setTimeout(function() {
             Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, info.path]);
-            hideProgress(truncateAmount);
+            Module.setStatus("Decoded with " + truncateAmount + "% stream");
 	  }, 10);
         }
       }
