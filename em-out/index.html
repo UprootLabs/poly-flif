@@ -101,9 +101,51 @@
          {path: "/assets/monkey.flif", credit:"https://unsplash.com/raf"}
       ];
 
+      function fileExists(path) {
+        try {
+          var stat = FS.stat(path)
+          return stat != undefined;
+        } catch(e) {
+          return false;
+        }
+      }
+
+      function loadFile(path, url, andThen) {
+        if (fileExists(path)) {
+          andThen();
+        } else {
+          Module.setStatus("Loading...");
+          var xhr = new XMLHttpRequest();
+          xhr.responseType = "arraybuffer";
+          xhr.open("GET", url);
+          xhr.onload = function() {
+            var content = new Uint8Array(this.response);
+            FS.writeFile(path, content, {encoding:"binary"})
+            andThen();
+          };
+          xhr.send();
+        }
+      }
+
+      function ensureDir(dirPath) {
+        try {
+          FS.mkdir(dirPath);
+        } catch (e) {
+          // Ignored
+        }
+      }
+
       function decode() {
+        ensureDir("/assets");
         var imageSelect = document.getElementById('imageSelect');
         var imgIdx = imageSelect.selectedIndex;
+        var path = imgInfos[imgIdx].path;
+        loadFile(path, path, function () {
+          decodeSync(imgIdx);
+        });
+      }
+
+      function decodeSync(imgIdx) {
         if (imgIdx > 0) {
           var info = imgInfos[imgIdx];
           var truncateInput = document.getElementById('truncate');
