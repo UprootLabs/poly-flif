@@ -44,7 +44,7 @@ canvas.emscripten { border: 0px none; }
   vertical-align: middle;
   margin-left: 20px;
   font-weight: bold;
-  color: rgb(120, 120, 120);
+  color: rgb(20, 20, 20);
 }
 
 #progress {
