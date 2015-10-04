@@ -112,6 +112,13 @@
 
       document.getElementById("viewer").addEventListener("mousemove", moveSplit, false);
 
+      function resetView() {
+        document.getElementById('pngImg').src = ""
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
       function showAbout() {
         document.getElementById('aboutModal').classList.add('visible');
       }
@@ -204,6 +211,8 @@
       }
 
       function decode() {
+        resetView();
+
         decodePng();
         ensureDir("/assets");
         var imageSelect = document.getElementById('imageSelect');
