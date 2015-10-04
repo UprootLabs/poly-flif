@@ -1,0 +1,101 @@
+body {
+  font-family: arial;
+  margin: 0;
+  padding: none;
+}
+
+#topBanner {
+  background-color: lightyellow;
+}
+
+.emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
+div.emscripten { text-align: center; }      
+div.emscripten_border { border: 1px solid lightgrey; padding: 1em; }
+/* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+canvas.emscripten { border: 0px none; }
+
+.spinner {
+  height: 30px;
+  width: 30px;
+  margin: 0;
+  margin-top: 20px;
+  margin-left: 20px;
+  display: inline-block;
+  vertical-align: middle;
+
+  animation: rotation 0.8s linear infinite;
+
+  border-left: 5px solid rgb(235, 235, 235);
+  border-right: 5px solid rgb(235, 235, 235);
+  border-bottom: 5px solid rgb(235, 235, 235);
+  border-top: 5px solid rgb(120, 120, 120);
+  
+  border-radius: 100%;
+  background-color: rgb(189, 215, 46);
+}
+
+@keyframes rotation {
+  from {transform: rotate(0deg);}
+  to {transform: rotate(360deg);}
+}
+
+#status {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 20px;
+  font-weight: bold;
+  color: rgb(20, 20, 20);
+}
+
+#progress {
+  height: 20px;
+  width: 30px;
+}
+
+#controls {
+  padding: 1em;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+#controls input {
+  vertical-align: middle;
+}
+
+#output {
+  width: 100%;
+  height: 200px;
+  margin: 0 auto;
+  border-left: 0px;
+  border-right: 0px;
+  padding-left: 0px;
+  padding-right: 0px;
+  display: block;
+  background-color: black;
+  color: white;
+  font-family: 'Lucida Console', Monaco, monospace;
+  outline: none;
+  display:none;
+}
+
+#aboutModal {
+  position:absolute;
+  left:25%;
+  right:25%;
+  top:15%;
+  display:none;
+  padding: 1em 2em;
+  background-color: lightgrey;
+  border: 8px solid grey;
+}
+#aboutModal.visible { display: block }
+.closeButton {text-align: right; margin:0;}
+
+#controls .header {padding: 0em; font-weight: bold; font-size: 1.5em; border-right:1px dotted grey; padding-right:.5em;}
+#controls .header input[type=button] { background: lightgrey; border:none}
+#controls .header a {color: black; text-decoration: none; border-bottom:1px dotted grey}
+#controls .header .subdued {color: grey;}
+#credits { text-align: center }
+#credits a { color: grey }
+#controls label { color: grey }
+
