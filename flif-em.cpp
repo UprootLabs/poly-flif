@@ -23,31 +23,34 @@ void showImage(Image firstImage) {
   int numPlanes = firstImage.numPlanes();
   printf("Num decoded planes: %d", numPlanes);
 
+  const int iWidth = firstImage.cols();
+  const int iHeight = firstImage.rows();
   EM_ASM_({
     var canvas = document.getElementById('canvas');
     canvas.width = $0;
     canvas.height = $1;
     window.ctx = canvas.getContext('2d');
-    window.imgData = window.ctx.getImageData(0,0,1,$0);
-  }, firstImage.cols(), firstImage.rows());
+    window.imgData = window.ctx.getImageData(0,0,$0,1);
+    window.imgDataData = window.imgData.data;
+  }, iWidth, iHeight);
       
-  for (int i = 0; i < firstImage.cols(); i++) {
-    for (int j = 0; j < firstImage.rows(); j++) {
-      ColorVal r = firstImage(0, j, i);
-      ColorVal g = firstImage(1, j, i);
-      ColorVal b = firstImage(2, j, i);
-      ColorVal a = numPlanes > 3 ? firstImage(3, j, i) : 255;
+  for (int i = 0; i < iHeight; i++) {
+    for (int j = 0; j < iWidth; j++) {
+      ColorVal r = firstImage(0, i, j);
+      ColorVal g = firstImage(1, i, j);
+      ColorVal b = firstImage(2, i, j);
+      ColorVal a = numPlanes > 3 ? firstImage(3, i, j) : 255;
       EM_ASM_({
         var indx = $4 * 4;
-        var imgData = window.imgData;
-        imgData.data[indx + 0] = $0;
-        imgData.data[indx + 1] = $1;
-        imgData.data[indx + 2] = $2;
-        imgData.data[indx + 3] = $3;
+        var idd = window.imgDataData;
+        idd[indx + 0] = $0;
+        idd[indx + 1] = $1;
+        idd[indx + 2] = $2;
+        idd[indx + 3] = $3;
       }, r, g, b, a, j);
     }
     EM_ASM_({
-        window.ctx.putImageData(imgData, $0, 0);
+        window.ctx.putImageData(imgData, 0, $0);
     }, i);
       
   }
@@ -55,6 +58,7 @@ void showImage(Image firstImage) {
   EM_ASM({
     window.ctx = undefined;
     window.imgData = undefined;
+    window.imgDataData = undefined;
   });
 }
 
