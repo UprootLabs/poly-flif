@@ -3,12 +3,17 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Flif demo</title>
+    <title>Poly FLIF demo</title>
+
     <style>
       body {
         font-family: arial;
         margin: 0;
         padding: none;
+      }
+
+      #topBanner {
+        background-color: lightyellow;
       }
 
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
@@ -87,46 +92,49 @@
         top:15%;
 	display:none;
 	padding: 1em 2em;
-	background: lightgrey;
+	background-color: lightgrey;
 	border: 8px solid grey;
       }
       #aboutModal.visible { display: block }
       .closeButton {text-align: right; margin:0;}
-      #controls .header {padding: 1em; background: grey; color: white }
+      #controls .header {padding: 0em; font-weight: bold; font-size: 1.5em; border-right:1px dotted grey; padding-right:.5em;}
+      #controls .header input[type=button] { background: lightgrey; border:none}
+      #controls .header a {color: black; text-decoration: none; border-bottom:1px dotted grey}
+      #controls .header .subdued {color: grey;}
       #credits { text-align: center }
       #credits a { color: grey }
       #controls label { color: grey }
     </style>
   </head>
   <body>
-    <a href="http://emscripten.org"> </a>
-
-    <div class="spinner" id='spinner'></div>
-    <span id='controls'>
-      <form onsubmit="return false" oninput="level.value = tlevel.valueAsNumber">
-        <span class="header">Poly-FLIF demo <input type="button" value="?" onclick="showAbout()"></input></span>
-        <label for="imageSelect">Image: </label>
-	<select id="imageSelect" onchange="imageChanged()">
-	  <option value="value0" selected disabled>Choose one ...</option> 
-	  <option value="value1">watch 497 x 331</option> 
-	  <option value="value2">1webp transparent 400 x 301</option> 
-	  <option value="value3">2webp transparent 386 x 395</option> 
-	  <option value="value4">3webp transparent 800 x 600</option> 
-	  <option value="value5">monkey 1132 x 849</option> 
-	</select>
-        <label for="truncate">Truncation level: </label>
-        <input name="tlevel" id="truncate" type="range" min="0" max="90" value="0" step="10" onchange="truncateChanged()">
-        <output for="truncate" name="level">0</output>%
-
-        <label for="bgColor">Background color: </label>
-        <input name="bgColor" id="bgColor" type="color" onchange="bgColorChanged()">
-      </form>
-    </span>
-
-    <div class="emscripten" id="status">Downloading...</div>
-
-    <div class="emscripten">
-      <progress value="0" max="100" id="progress" hidden=1></progress>
+    <div id="topBanner">
+      <div class="spinner" id='spinner'></div>
+      <span id='controls'>
+        <form onsubmit="return false" oninput="level.value = tlevel.valueAsNumber">
+          <span class="header"><a href="https://github.com/UprootLabs/poly-flif">Poly-FLIF</a> <span class="subdued">demo</span> <input type="button" value="?" onclick="showAbout()"></input></span>
+          <label for="imageSelect">Image: </label>
+  	<select id="imageSelect" onchange="imageChanged()">
+  	  <option value="value0" selected disabled>Choose one ...</option> 
+  	  <option value="value1">watch 497 x 331</option> 
+  	  <option value="value2">1webp transparent 400 x 301</option> 
+  	  <option value="value3">2webp transparent 386 x 395</option> 
+  	  <option value="value4">3webp transparent 800 x 600</option> 
+  	  <option value="value5">monkey 1132 x 849</option> 
+  	</select>
+          <label for="truncate">Truncation level: </label>
+          <input name="tlevel" id="truncate" type="range" min="0" max="90" value="0" step="10" onchange="truncateChanged()">
+          <output for="truncate" name="level">0</output>%
+  
+          <label for="bgColor">Background color: </label>
+          <input name="bgColor" id="bgColor" type="color" onchange="bgColorChanged()">
+        </form>
+      </span>
+  
+      <div class="emscripten" id="status">Downloading...</div>
+  
+      <div class="emscripten">
+        <progress value="0" max="100" id="progress" hidden=1></progress>
+      </div>
     </div>
 
     
@@ -144,11 +152,13 @@
       <p>FLIF is a lossless image format based on MANIAC compression. MANIAC (Meta-Adaptive Near-zero Integer Arithmetic Coding) is a variant of CABAC (context-adaptive binary arithmetic coding), where the contexts are nodes of decision trees which are dynamically learned at encode time.</p>
       <p>FLIF outperforms PNG, FFV1, lossless WebP, lossless BPG and lossless JPEG2000 in terms of compression ratio.</p>
       <p>Note that the FLIF spec is not yet defined completely. And the code is not optimised yet.</p>
-      <p>Do not use this in production.</p>
+      <p>Do not use this in production yet.</p>
 
       <h2>Links</h2>
       <p>FLIF <a href="http://flif.info">home page.</a> and <a href="https://github.com/jonsneyers/FLIF">source code.</a></p>
       <p>Poly FLIF <a href="https://github.com/uprootlabs/poly-flif">source code.</a></p>
+      <p><a href="http://emscripten.org">emscripten</a></p>
+
     </div>
     <script type='text/javascript'>
       function showAbout() {
