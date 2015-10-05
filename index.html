@@ -6,6 +6,7 @@
     <title>Poly FLIF demo</title>
 
     <link type="text/css" rel="stylesheet" href="style.css" />
+    <script src="imgInfo.js"></script>
   </head>
   <body>
     <div id="topBanner">
@@ -13,21 +14,23 @@
       <span id='controls'>
         <form onsubmit="return false" oninput="level.value = tlevel.valueAsNumber">
           <span class="header"><a href="https://github.com/UprootLabs/poly-flif">Poly-FLIF</a> <span class="subdued">demo</span> <input type="button" value="?" onclick="showAbout()"></input></span>
-          <label for="imageSelect">Image: </label>
-  	<select id="imageSelect" onchange="imageChanged()">
-  	  <option value="value0" selected disabled>Choose one ...</option> 
-  	  <option value="value1">watch 497 x 331</option> 
-  	  <option value="value2">1webp transparent 400 x 301</option> 
-  	  <option value="value3">2webp transparent 386 x 395</option> 
-  	  <option value="value4">3webp transparent 800 x 600</option> 
-  	  <option value="value5">monkey 1132 x 849</option> 
-  	</select>
-          <label for="truncate">Truncation level: </label>
-          <input name="tlevel" id="truncate" type="range" min="0" max="90" value="0" step="10" onchange="truncateChanged()">
-          <output for="truncate" name="level">0</output>%
+          <div class="inputGroup">
+            <label for="imageSelect">Image: </label>
+  	    <select id="imageSelect" onchange="imageChanged()">
+  	      <option value="value0" selected disabled>Choose one ...</option> 
+  	    </select>
+          </div>
+          <div class="inputGroup">
+            <label for="truncate">Truncation: </label>
+            <input name="tlevel" id="truncate" type="range" min="0" max="90" value="40" step="10" onchange="truncateChanged()">
+            <output for="truncate" name="level">40</output>%
+          </div>
   
-          <label for="bgColor">Background color: </label>
-          <input name="bgColor" id="bgColor" type="color" onchange="bgColorChanged()">
+          <div class="inputGroup">
+            <label for="bgColor">Bg color: </label>
+            <input name="bgColor" id="bgColor" type="color" value="#e0ffd2" onchange="bgColorChanged()">
+          </div>
+
         </form>
       </span>
   
@@ -39,10 +42,23 @@
     </div>
 
     
-    <div class="emscripten_border">
-      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-      <p id="credits"></p>
+    <div class="emscripten_border viewer-parent">
+      <div id="viewer">
+        <div id="viewer-left">
+          <div class="wrapper">
+            <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+          </div>
+          <div id="left-info"><p>«&nbsp;FLIF</p><p class="size">10kB&nbsp;/&nbsp;236kB</p></div>
+        </div>
+        <div id="viewer-right">
+          <div class="wrapper">
+            <img id="pngImg" />
+          </div>
+          <div id="right-info"><p>PNG&nbsp;»</p><p class="size">20kB&nbsp;/&nbsp;320kB</p></div>
+        </div>
+      </div>
     </div>
+      <p id="credits"></p>
     <textarea id="output" rows="8"></textarea>
 
     <div id="aboutModal">
@@ -62,20 +78,108 @@
 
     </div>
     <script type='text/javascript'>
+      /* Viewer
+         TODO: Wrap as separate class { */
+      var splitPosition = 0.5;
+      var viewWidth = 0;
+      var viewHeight = 0;
+
+      function setElementDimension(query, w, h) {
+        var e = document.querySelector(query);
+        e.style.width = ""+w+"px";
+        e.style.height = ""+h+"px";
+      }
+
+      function updateViewer(width, height) {
+        setElementDimension("#viewer", width, height + 100);
+        setElementDimension(".viewer-parent", width, height + 100);
+
+	// This shouldn't be required, but the right-wrapper expands in height for some reason
+        setElementDimension("#viewer-right .wrapper", width, height);
+
+        viewWidth = width;
+        viewHeight = height;
+
+        updateSplit();
+        setElementTop("#left-info", viewHeight);
+        setElementTop("#right-info", viewHeight);
+      }
+
+      function updateSplit() {
+        var leftWidth = Math.floor(viewWidth * splitPosition);
+        var rightWidth = viewWidth - leftWidth;
+        setElementDimension("#viewer-left", leftWidth, viewHeight + 100);
+        setElementDimension("#viewer-right", rightWidth, viewHeight + 100);
+      }
+
+      function setElementTop(query, t) {
+        var e = document.querySelector(query);
+        e.style.top = ""+t+"px";
+      }
+
+      function moveSplit(event) {
+        var view = document.getElementById("viewer");
+        var offset = view.getBoundingClientRect();
+        var x = Math.max(0, event.clientX - offset.left);
+        var y = Math.max(0, event.clientY - offset.top);
+
+        splitPosition = x / viewWidth;
+
+        updateSplit();
+
+        setElementTop("#left-info", viewHeight);
+        setElementTop("#right-info", viewHeight);
+        return false;
+      }
+
+      /* } End of Viewer */
+
+      function init() {
+        viewer.parentElement.hidden = true;
+        imgInfos.sort(function (a, b) {
+          if (!b.imgSize) {
+            return 1;
+          } else if (!a.imgSize) {
+            return -1;
+          } else {
+            return a.imgSize.height - b.imgSize.height;
+          }
+        });
+        var selectElem = document.getElementById('imageSelect');
+        function addOption(idx, title) {
+          var optElem = document.createElement("option");
+          optElem.setAttribute("value", "value"+idx);
+          optElem.textContent = title;
+          selectElem.appendChild(optElem);
+        }
+        for (var i = 1; i < imgInfos.length; i++) {
+          var info = imgInfos[i];
+  	  addOption(i, info.name + " " + info.imgSize.width + " x " + info.imgSize.height);
+        }
+        document.getElementById("viewer").addEventListener("mousemove", moveSplit, false);
+        bgColorChanged();
+
+        setLeftInfo("FLIF", 0, 0);
+        setRightInfo("PNG", 0, 0);
+      }
+
+      // TODO: Call on window load, or some such
+      init();
+
+      function resetView() {
+        viewer.parentElement.hidden = false;
+        document.getElementById('pngImg').src = ""
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
       function showAbout() {
         document.getElementById('aboutModal').classList.add('visible');
       }
 
       function hideAbout() {
         document.getElementById('aboutModal').classList.remove('visible');
-      }
-
-      function showProgress() {
-        Module.setStatus("Decoding...");
-      }
-
-      function hideProgress(truncateAmount) {
-        Module.setStatus("Decoded with " + truncateAmount + "% stream");
       }
 
       function truncateChanged() {
@@ -89,17 +193,20 @@
       function bgColorChanged() {
         var bgInput = document.getElementById('bgColor');
 	console.log(bgInput.value);
-        document.getElementById("canvas").setAttribute("style",  "background: " + bgInput.value);
+        document.querySelector("#viewer-left .wrapper").style.background = bgInput.value;
+        document.querySelector("#viewer-right .wrapper").style.background = bgInput.value;
       }
 
+/*
       var imgInfos = [
          {},
-         {path: "assets/watch_by8.flif", credit:"https://unsplash.com/veri_ivanova"},
-         {path: "assets/1_webp_ll.flif"},
-         {path: "assets/2_webp_ll.flif"},
-         {path: "assets/3_webp_ll.flif"},
-         {path: "assets/monkey.flif", credit:"https://unsplash.com/raf"}
+         {name: "watch_by8", width:497, height: 331, fileSizes: {flif:credit:"https://unsplash.com/veri_ivanova"},
+         {name: "1_webp_ll", width:400, height: 301},
+         {name: "2_webp_ll", width:386, height: 395},
+         {name: "3_webp_ll", width:800, height: 600},
+         {name: "monkey",    width:1132, height: 849, credit:"https://unsplash.com/raf"}
       ];
+*/
 
       function fileExists(path) {
         try {
@@ -110,20 +217,26 @@
         }
       }
 
-      function loadFile(path, url, andThen) {
-        if (fileExists(path)) {
-          andThen();
-        } else {
-          Module.setStatus("Loading...");
+      function getURLAsBytes(url, andThen) {
           var xhr = new XMLHttpRequest();
           xhr.responseType = "arraybuffer";
           xhr.open("GET", url);
           xhr.onload = function() {
             var content = new Uint8Array(this.response);
-            FS.writeFile(path, content, {encoding:"binary"})
-            andThen();
+            andThen(content);
           };
           xhr.send();
+      }
+
+      function loadFile(path, url, andThen) {
+        if (fileExists(path)) {
+          andThen();
+        } else {
+          Module.setStatus("Loading...");
+          getURLAsBytes(url, function(content) {
+            FS.writeFile(path, content, {encoding:"binary"})
+            andThen();
+          });
         }
       }
 
@@ -135,11 +248,65 @@
         }
       }
 
+      function setRightInfo(title, truncSize, fullSize) {
+        var titleStr = '<p>'+title+'&nbsp;»</p>';
+        setInfo('#right-info', titleStr, truncSize, fullSize);
+      }
+
+      function setLeftInfo(title, truncSize, fullSize) {
+        var titleStr = '<p>«&nbsp;'+title+'</p>';
+        setInfo('#left-info', titleStr, truncSize, fullSize);
+      }
+
+      function humanize(length) {
+        return (length > (1024 * 1024)) ?
+                 ''+(Math.round((length / (1024*1024))*10)/10)+'mB' :
+                 (
+                   (length > 1024) ?  ''+(Math.round((length / 1024)*10)/10)+'kB' : ''+length+'B'
+                 );
+	
+      }
+
+      function setInfo(query, titleStr, truncSize, fullSize) {
+        var sizeStr = truncSize == fullSize ? humanize(fullSize) : humanize(truncSize) + "&nbsp;/&nbsp;" + humanize(fullSize);
+        var sizeParaStr = '<p class="size">'+sizeStr+'</p>';
+        var htmlStr = titleStr + sizeParaStr;
+        document.querySelector(query).innerHTML = htmlStr;
+      }
+
+      function decodePng() {
+        var truncateInput = document.getElementById('truncate');
+        var truncateAmount = 100 - truncateInput.value;
+
+        var imageSelect = document.getElementById('imageSelect');
+        var imgIdx = imageSelect.selectedIndex;
+        var imgInfo = imgInfos[imgIdx];
+        updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
+        var path = "assets/"+imgInfo.name+"-i.png";
+        getURLAsBytes(path, function (content) {
+          var blob = new Blob([content], {type: 'image/png'});
+          if (truncateAmount != 100) {
+            // var truncatedSize =  Math.floor(content.length * (truncateAmount / 100));
+            var flifSize = imgInfo.fileSizes.flif;
+            var truncatedSize =  Math.min(content.length, Math.floor(flifSize * (truncateAmount / 100)));
+            setRightInfo("PNG", truncatedSize, content.length);
+            blob = blob.slice(0, truncatedSize);
+          } else {
+            setRightInfo("PNG", content.length, content.length);
+          }
+          var burl = URL.createObjectURL(blob);
+          document.getElementById('pngImg').src = burl;
+        });
+      }
+
       function decode() {
+        resetView();
+
+        decodePng();
         ensureDir("/assets");
         var imageSelect = document.getElementById('imageSelect');
         var imgIdx = imageSelect.selectedIndex;
-        var path = imgInfos[imgIdx].path;
+        var path = "assets/"+imgInfos[imgIdx].name+".flif";
         loadFile("/" + path, path, function () {
           decodeSync(imgIdx);
         });
@@ -155,10 +322,16 @@
           } else {
             document.getElementById("credits").innerHTML = "";
           }
-          showProgress();
+          Module.setStatus("Decoding...");
+
+          var flifSize = info.fileSizes.flif;
+          var truncatedSize = Math.floor(flifSize * (truncateAmount/100));
+          setLeftInfo("FLIF", truncatedSize, flifSize);
+
 	  setTimeout(function() {
-            Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, info.path]);
-            hideProgress(truncateAmount);
+            Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, "/assets/"+info.name+".flif"]);
+            // Module.setStatus("Decoded with " + truncateAmount + "% stream");
+            Module.setStatus("Comparing with same sized PNG");
 	  }, 10);
         }
       }
