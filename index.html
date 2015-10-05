@@ -275,41 +275,48 @@
       }
 
       function decodePng() {
-        var truncateInput = document.getElementById('truncate');
-        var truncateAmount = 100 - truncateInput.value;
-
         var imageSelect = document.getElementById('imageSelect');
         var imgIdx = imageSelect.selectedIndex;
-        var imgInfo = imgInfos[imgIdx];
-        updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
-        var path = "assets/"+imgInfo.name+"-i.png";
-        getURLAsBytes(path, function (content) {
-          var blob = new Blob([content], {type: 'image/png'});
-          if (truncateAmount != 100) {
-            // var truncatedSize =  Math.floor(content.length * (truncateAmount / 100));
-            var flifSize = imgInfo.fileSizes.flif;
-            var truncatedSize =  Math.min(content.length, Math.floor(flifSize * (truncateAmount / 100)));
-            setRightInfo("PNG", truncatedSize, content.length);
-            blob = blob.slice(0, truncatedSize);
-          } else {
-            setRightInfo("PNG", content.length, content.length);
-          }
-          var burl = URL.createObjectURL(blob);
-          document.getElementById('pngImg').src = burl;
-        });
+
+        if (imgIdx > 0) {
+          var truncateInput = document.getElementById('truncate');
+          var truncateAmount = 100 - truncateInput.value;
+
+          var imgInfo = imgInfos[imgIdx];
+          updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
+          var path = "assets/"+imgInfo.name+"-i.png";
+          getURLAsBytes(path, function (content) {
+            var blob = new Blob([content], {type: 'image/png'});
+            if (truncateAmount != 100) {
+              // var truncatedSize =  Math.floor(content.length * (truncateAmount / 100));
+              var flifSize = imgInfo.fileSizes.flif;
+              var truncatedSize =  Math.min(content.length, Math.floor(flifSize * (truncateAmount / 100)));
+              setRightInfo("PNG", truncatedSize, content.length);
+              blob = blob.slice(0, truncatedSize);
+            } else {
+              setRightInfo("PNG", content.length, content.length);
+            }
+            var burl = URL.createObjectURL(blob);
+            document.getElementById('pngImg').src = burl;
+          });
+        }
       }
 
       function decode() {
         resetView();
 
-        decodePng();
         ensureDir("/assets");
+
         var imageSelect = document.getElementById('imageSelect');
         var imgIdx = imageSelect.selectedIndex;
-        var path = "assets/"+imgInfos[imgIdx].name+".flif";
-        loadFile("/" + path, path, function () {
-          decodeSync(imgIdx);
-        });
+
+        if (imgIdx > 0) {
+          decodePng();
+          var path = "assets/"+imgInfos[imgIdx].name+".flif";
+          loadFile("/" + path, path, function () {
+            decodeSync(imgIdx);
+          });
+        }
       }
 
       function decodeSync(imgIdx) {
