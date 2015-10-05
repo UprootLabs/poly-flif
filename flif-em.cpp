@@ -59,6 +59,10 @@ int mainy(int truncate, const char *fname) {
   Image firstImage = images[0];
   showImage(firstImage);
 
+  for (Image img : images) {
+    img.clear();
+  }
+
   images.clear();
   return 0;
 }
