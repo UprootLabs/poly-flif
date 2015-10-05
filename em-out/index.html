@@ -331,7 +331,11 @@
 	  setTimeout(function() {
             Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, "/assets/"+info.name+".flif"]);
             // Module.setStatus("Decoded with " + truncateAmount + "% stream");
-            Module.setStatus("Comparing with same sized PNG");
+            if (truncateAmount == 100) {
+              Module.setStatus("Comparing with original image");
+            } else {
+              Module.setStatus("Comparing with same sized PNG");
+            }
 	  }, 10);
         }
       }
