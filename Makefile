@@ -1,5 +1,5 @@
-CXXFLAGS := $(shell pkg-config --cflags zlib libpng)
-LDFLAGS := $(shell pkg-config --libs zlib libpng)
+# CXXFLAGS := $(shell pkg-config --cflags zlib libpng)
+# LDFLAGS := $(shell pkg-config --libs zlib libpng)
 
 CXX=em++
 
