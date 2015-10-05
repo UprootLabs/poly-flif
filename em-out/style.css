@@ -92,12 +92,12 @@ canvas.emscripten { border: 0px none; }
 .closeButton {text-align: right; margin:0;}
 
 #controls .header {padding: 0em; font-weight: bold; font-size: 1.5em; border-right:1px dotted grey; padding-right:.5em;}
-#controls .header input[type=button] { background: lightgrey; border:none}
-#controls .header a {color: black; text-decoration: none; border-bottom:1px dotted grey}
-#controls .header .subdued {color: grey;}
+#controls .header input[type=button] { background: #ddd; border:none; border-radius:.3em;}
+#controls .header a {color: #76b45a; text-decoration: none; border-bottom:1px dotted #76b45a}
+#controls .header .subdued {color: #999;}
 #credits { text-align: center }
 #credits a { color: grey }
-#controls label { color: grey }
+#controls label { color: grey; padding-bottom: .1em; }
 
 
 #viewer {
