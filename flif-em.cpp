@@ -51,7 +51,6 @@ void showImage(Image firstImage) {
 extern "C" {
 
 int mainy(int truncate, const char *fname) {
-  printf("Hello new world !\n");
   Images images;
   int quality = 100;
   int scale = 1;
@@ -59,6 +58,8 @@ int mainy(int truncate, const char *fname) {
   printf("Num decoded images: %d\n", images.size());
   Image firstImage = images[0];
   showImage(firstImage);
+
+  images.clear();
   return 0;
 }
 
