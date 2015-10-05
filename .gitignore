@@ -2,3 +2,10 @@
 /em-out/flif.html.mem
 /em-out/flif.data
 /em-out/flif.js
+
+*.xcworkspace/*
+*.xcworkspace
+*.xcodeproj
+flif
+
+flif.osx

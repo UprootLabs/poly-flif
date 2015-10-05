@@ -5,20 +5,6 @@
 
 #include <emscripten.h>
 
-// TODO: Remove this (v_printf and related) from here and flif.cpp and move to common.cpp
-#include <stdarg.h>
-
-static int verbosity = 1;
-
-void v_printf(const int v, const char *format, ...) {
-    if (verbosity < v) return;
-    va_list args;
-    va_start(args, format);
-    vfprintf(stdout, format, args);
-    fflush(stdout);
-    va_end(args);
-}
-
 void showImage(Image firstImage) {
   int numPlanes = firstImage.numPlanes();
   printf("Num decoded planes: %d", numPlanes);
