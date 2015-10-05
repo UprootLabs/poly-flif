@@ -3,7 +3,7 @@ LDFLAGS := $(shell pkg-config --libs zlib libpng)
 
 CXX=em++
 
-EM_SCRIPT_OPTIONS=-s EXPORTED_FUNCTIONS='["_mainy"]' -s TOTAL_MEMORY=50000000 -s USE_LIBPNG=1 --preload-file assets
+EM_SCRIPT_OPTIONS=-s EXPORTED_FUNCTIONS='["_mainy"]' -s TOTAL_MEMORY=50000000 -s USE_LIBPNG=1
 
 CXXFLAGS += ${EM_SCRIPT_OPTIONS}
 
