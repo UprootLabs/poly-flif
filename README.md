@@ -1,17 +1,16 @@
 # Poly FLIF
 
-A quick attempt to create a poly fill for FLIF in browsers, using emscripten.
+An attempt to create a poly fill for FLIF in browsers, using emscripten.
 
-Status: Early Alpha. No optimisation, or code hygiene.
+Status: Alpha quality. Performance hasn't been optimised yet.
 
 [Demo](https://uprootlabs.github.io/poly-flif/)
 
-
 # Roadmap
 
-* Load image data asynchronously. [#1](https://github.com/UprootLabs/poly-flif/issues/1)
 * Support animations. [#2](https://github.com/UprootLabs/poly-flif/issues/2)
 * Fix memory leaks. [#3](https://github.com/UprootLabs/poly-flif/issues/3)
+* Design a proper API [#6](https://github.com/UprootLabs/poly-flif/issues/6)
 
 # What is FLIF
 
