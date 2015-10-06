@@ -102,8 +102,7 @@ canvas.emscripten { border: 0px none; }
 
 #viewer {
   position:relative;
-  /* cursor: ew-resize; */
-  cursor: none;
+  cursor: ew-resize;
 }
 
 
