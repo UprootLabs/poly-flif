@@ -1,6 +1,5 @@
 #include "flif_config.h"
 
-#include "common.h"
 #include "flif-dec.h"
 
 #include <emscripten.h>
