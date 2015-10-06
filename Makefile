@@ -3,7 +3,7 @@
 
 CXX=em++
 
-EM_SCRIPT_OPTIONS=-s EXPORTED_FUNCTIONS='["_mainy"]' -s TOTAL_MEMORY=20000000 --js-library flif-library.js
+EM_SCRIPT_OPTIONS=-s EXPORTED_FUNCTIONS='["_mainy"]' -s TOTAL_MEMORY=20000000 --js-library flif-library.js -s NO_FILESYSTEM=1 -s NO_BROWSER=1
 
 CXXFLAGS += ${EM_SCRIPT_OPTIONS}
 
