@@ -166,12 +166,46 @@ function loadFile(path, url, andThen) {
   }
 }
 
+function bufferExists(id) {
+  return jsBuffers.hasOwnProperty(id);
+}
+
+function addBuffer(id, content) {
+  jsBuffers[id] = content;
+}
+
+// Separate array than jsBuffers, so that look-ups are fast.
+var jsBufferPaths = [];
+function reserveBuffer(path) {
+  for (var i = 0; i < jsBufferPaths.length; i ++) {
+    if (jsBufferPaths[i] == path) {
+      return i;
+    }
+  }
+  jsBufferPaths.push(path);
+  return jsBufferPaths.length - 1;
+}
+
+function loadBytes(id, url, andThen) {
+  if (bufferExists(id)) {
+    andThen();
+  } else {
+    Module.setStatus("Loading...");
+    getURLAsBytes(url, function(content) {
+      addBuffer(id, content)
+      andThen();
+    });
+  }
+}
+
 function ensureDir(dirPath) {
+/*
   try {
     FS.mkdir(dirPath);
   } catch (e) {
     // Ignored
   }
+*/
 }
 
 function setRightInfo(title, truncSize, fullSize) {
@@ -239,13 +273,17 @@ function decode() {
   if (imgIdx > 0) {
     decodePng();
     var path = "assets/"+imgInfos[imgIdx].name+".flif";
-    loadFile("/" + path, path, function () {
-      decodeSync(imgIdx);
+    // loadFile("/" + path, path, function () {
+    var bufId = reserveBuffer(path);
+    loadBytes(bufId, path, function () {
+      decodeSync(bufId, imgIdx);
     });
   }
 }
 
-function decodeSync(imgIdx) {
+var jsBuffers = [];
+
+function decodeSync(bufId, imgIdx) {
   if (imgIdx > 0) {
     var info = imgInfos[imgIdx];
     var truncateInput = document.getElementById('truncate');
@@ -262,7 +300,7 @@ function decodeSync(imgIdx) {
     setLeftInfo("FLIF", truncatedSize, flifSize);
 
     setTimeout(function() {
-      Module.ccall("mainy", 'number', ['number', 'string'], [truncateAmount, "/assets/"+info.name+".flif"]);
+      Module.ccall("mainy", 'number', ['number', 'number', 'string'], [truncateAmount, bufId, "/assets/"+info.name+".flif"]);
       // Module.setStatus("Decoded with " + truncateAmount + "% stream");
       if (truncateAmount == 100) {
         Module.setStatus("Comparing with original image");

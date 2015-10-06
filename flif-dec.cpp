@@ -11,11 +11,7 @@
 #include "flif_config.h"
 
 #include "common.h"
-#include "fileio.h"
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "bufferio.h"
 
 static int truncatedSize = -1;
 
@@ -473,4 +469,4 @@ bool flif_decode(IO& io, Images &images, int quality, int scale)
     return true;
 }
 
-template bool flif_decode(FileIO& io, Images &images, int quality, int scale);
+template bool flif_decode(BufferIO& io, Images &images, int quality, int scale);

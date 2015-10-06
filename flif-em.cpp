@@ -2,6 +2,8 @@
 
 #include "flif-dec.h"
 
+#include "bufferio.h"
+
 #include <emscripten.h>
 
 void showImage(Image& firstImage) {
@@ -49,15 +51,15 @@ void showImage(Image& firstImage) {
 
 extern "C" {
 
-int mainy(int truncate, const char *fname) {
+int mainy(int truncate, const int bufId, const char* bufName) {
   Images images;
   int quality = 100;
   int scale = 1;
 
-  FILE *file = fopen(fname, "rb");
+  // FILE *file = fopen(fname, "rb");
 
-  FileIO fileio(file, fname, truncate);
-  if (!flif_decode(fileio, images, quality, scale)) return 3;
+  BufferIO bufio(bufId, bufName, truncate);
+  if (!flif_decode(bufio, images, quality, scale)) return 3;
   printf("Num decoded images: %d\n", images.size());
   Image& firstImage = images[0];
   showImage(firstImage);

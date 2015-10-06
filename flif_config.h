@@ -14,7 +14,7 @@
 
 #include "maniac/rac.h"
 
-#include "fileio.h"
+#include "bufferio.h"
 
 template <typename IO>
 using RacIn = RacInput40<IO>;

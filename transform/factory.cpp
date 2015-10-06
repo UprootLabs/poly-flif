@@ -33,4 +33,4 @@ Transform<IO> *create_transform(std::string desc)
     return NULL;
 }
 
-template Transform<FileIO> *create_transform(std::string desc);
+template Transform<BufferIO> *create_transform(std::string desc);
