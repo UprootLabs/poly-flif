@@ -30,10 +30,9 @@ public:
         truncateCount = size * (truncatePercent/100.0);
       }
     }
-public:
-	~FileIO() {
-		fclose(file);
-	}
+    ~FileIO() {
+        if (file) fclose(file);
+    }
     int read() {
       if (truncateCount >= 0 && readCount > truncateCount) {
         return 0;
