@@ -5,6 +5,8 @@
 #include <stdio.h>
 #endif
 
+#include <stdlib.h>
+
 #include <vector>
 #include <assert.h>
 #include "util.h"

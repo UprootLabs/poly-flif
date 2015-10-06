@@ -7,6 +7,8 @@
 #include <valarray>
 #include "crc32k.h"
 
+#include <stdio.h>
+
 typedef int32_t ColorVal;  // used in computations
 
 typedef int16_t ColorVal_intern_8;   // used in representations
