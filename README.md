@@ -1,4 +1,5 @@
 # Poly FLIF
+[![Join the chat at https://gitter.im/jonsneyers/FLIF](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/jonsneyers/FLIF?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 An attempt to create a poly fill for FLIF in browsers, using emscripten.
 

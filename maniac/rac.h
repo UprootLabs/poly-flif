@@ -1,10 +1,9 @@
-#ifndef _RAC_H_
-#define _RAC_H_ 1
+#ifndef FLIF_RAC_H
+#define FLIF_RAC_H 1
 
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
-
 
 /* RAC configuration for 40-bit RAC */
 class RacConfig40
@@ -91,9 +90,15 @@ public:
     int ftell() {
       return io.ftell();
     }
+    char getc() {
+      return io.getc();
+    }
+    char * gets(char *buf, int n) {
+      return io.gets(buf, n);
+    }
 };
 
-template <class Config, class IO> class RacOutput
+template <class Config, typename IO> class RacOutput
 {
 public:
     typedef typename Config::data_t rac_t;
@@ -194,70 +199,32 @@ public:
     void inline flush() { }
 
     int ftell() {
-      // TODO: Should this return the actual bytes written?
       return 0;
     }
 };
 
-
-class RacFileIO
+template <typename IO> class RacInput40 : public RacInput<RacConfig40, IO>
 {
-private:
-    FILE *file;
-    int limit;
-    int count = 0;
 public:
-    RacFileIO(FILE* fil) : file(fil) { limit = -1;}
-    RacFileIO(FILE* fil, int limitP) : file(fil) { limit = limitP; }
-    int read() {
-        if (limit >= 0 && count > limit) {
-          return 0;
-	}
-        int r = fgetc(file);
-        if (r < 0) return 0;
-        count ++;
-        return r;
-    }
-    void write(int byte) {
-        fputc(byte, file);
-    }
-    void flush() {
-    }
-    bool isEOF() {
-        if (limit >= 0 && count > limit) {
-          return true;
-        } else {
-          return feof(file);
-        }
-    }
-    int ftell() {
-      return count;
-    }
+    RacInput40(IO io) : RacInput<RacConfig40, IO>(io) { }
 };
 
-class RacInput40 : public RacInput<RacConfig40, RacFileIO>
+template <typename IO> class RacOutput40 : public RacOutput<RacConfig40, IO>
 {
 public:
-    RacInput40(FILE *file) : RacInput<RacConfig40, RacFileIO>(RacFileIO(file)) { }
-    RacInput40(FILE *file, int limit) : RacInput<RacConfig40, RacFileIO>(RacFileIO(file, limit)) { }
+    RacOutput40(IO io) : RacOutput<RacConfig40, IO>(io) { }
 };
 
-class RacOutput40 : public RacOutput<RacConfig40, RacFileIO>
+template <typename IO> class RacInput24 : public RacInput<RacConfig24, IO>
 {
 public:
-    RacOutput40(FILE *file) : RacOutput<RacConfig40, RacFileIO>(RacFileIO(file)) { }
+    RacInput24(IO io) : RacInput<RacConfig24, IO>(io) { }
 };
 
-class RacInput24 : public RacInput<RacConfig24, RacFileIO>
+template <typename IO> class RacOutput24 : public RacOutput<RacConfig24, IO>
 {
 public:
-    RacInput24(FILE *file) : RacInput<RacConfig24, RacFileIO>(RacFileIO(file)) { }
-};
-
-class RacOutput24 : public RacOutput<RacConfig24, RacFileIO>
-{
-public:
-    RacOutput24(FILE *file) : RacOutput<RacConfig24, RacFileIO>(RacFileIO(file)) { }
+    RacOutput24(IO io) : RacOutput<RacConfig24, IO>(io) { }
 };
 
 #endif

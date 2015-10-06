@@ -54,7 +54,11 @@ int mainy(int truncate, const char *fname) {
   Images images;
   int quality = 100;
   int scale = 1;
-  if (!decode(fname, images, quality, scale, truncate)) return 3;
+
+  FILE *file = fopen(fname, "rb");
+
+  FileIO fileio(file, fname, truncate);
+  if (!flif_decode(fileio, images, quality, scale)) return 3;
   printf("Num decoded images: %d\n", images.size());
   Image firstImage = images[0];
   showImage(firstImage);
