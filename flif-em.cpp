@@ -6,6 +6,42 @@
 
 #include <emscripten.h>
 
+extern "C" {
+void initCanvasDraw();
+void putPixel(int j, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+void showRow(int i);
+void finishCanvasDraw();
+}
+
+void showImageQuick(Image& firstImage) {
+  int numPlanes = firstImage.numPlanes();
+  printf("Num decoded planes: %d", numPlanes);
+
+  const int iWidth = firstImage.cols();
+  const int iHeight = firstImage.rows();
+
+  EM_ASM_({
+    var canvas = document.getElementById('canvas');
+    canvas.width = $0;
+    canvas.height = $1;
+  }, iWidth, iHeight);
+
+  initCanvasDraw();
+
+  for (int i = 0; i < iHeight; i++) {
+    for (int j = 0; j < iWidth; j++) {
+      ColorVal r = firstImage(0, i, j);
+      ColorVal g = firstImage(1, i, j);
+      ColorVal b = firstImage(2, i, j);
+      ColorVal a = numPlanes > 3 ? firstImage(3, i, j) : 255;
+      putPixel(j*4, r, g, b, a);
+    }
+    showRow(i);
+  }
+
+  finishCanvasDraw();
+}
+
 void showImage(Image& firstImage) {
   int numPlanes = firstImage.numPlanes();
   printf("Num decoded planes: %d", numPlanes);
@@ -62,7 +98,7 @@ int mainy(int truncate, const int bufId, const char* bufName) {
   if (!flif_decode(bufio, images, quality, scale)) return 3;
   printf("Num decoded images: %d\n", images.size());
   Image& firstImage = images[0];
-  showImage(firstImage);
+  showImageQuick(firstImage);
 
   for (Image& img : images) {
     img.clear();
