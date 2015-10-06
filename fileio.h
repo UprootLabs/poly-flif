@@ -12,6 +12,13 @@ private:
     const char *name;
     int truncateCount;
     int readCount = 0;
+	
+	// prevent copy
+	FileIO(const FileIO&) {}
+	void operator=(const FileIO&) {}
+	// prevent move, for now
+	FileIO(FileIO&&) {}
+	void operator=(FileIO&&) {}
 public:
     FileIO(FILE* fil, const char *aname, const int truncatePercent) : file(fil), name(aname) {
       if (truncatePercent == 0) {
@@ -23,6 +30,10 @@ public:
         truncateCount = size * (truncatePercent/100.0);
       }
     }
+public:
+	~FileIO() {
+		fclose(file);
+	}
     int read() {
       if (truncateCount >= 0 && readCount > truncateCount) {
         return 0;

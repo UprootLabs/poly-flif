@@ -285,7 +285,7 @@ template<typename BitChance, typename Rac> void flif_decode_tree(Rac &rac, const
 }
 
 template <typename IO>
-bool flif_decode(IO io, Images &images, int quality, int scale)
+bool flif_decode(IO& io, Images &images, int quality, int scale)
 {
     if (scale != 1 && scale != 2 && scale != 4 && scale != 8 && scale != 16 && scale != 32 && scale != 64 && scale != 128) {
                 fprintf(stderr,"Invalid scale down factor: %i\n", scale);
@@ -342,8 +342,7 @@ bool flif_decode(IO io, Images &images, int quality, int scale)
     }
 
     for (int i=0; i<numFrames; i++) {
-      Image image;
-      images.push_back(image);
+      images.push_back(Image());
       images[i].init(width,height,0,maxmax,numPlanes);
     }
     std::vector<const ColorRanges*> rangesList;
@@ -474,4 +473,4 @@ bool flif_decode(IO io, Images &images, int quality, int scale)
     return true;
 }
 
-template bool flif_decode(FileIO io, Images &images, int quality, int scale);
+template bool flif_decode(FileIO& io, Images &images, int quality, int scale);

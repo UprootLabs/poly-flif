@@ -4,7 +4,7 @@
 
 #include <emscripten.h>
 
-void showImage(Image firstImage) {
+void showImage(Image& firstImage) {
   int numPlanes = firstImage.numPlanes();
   printf("Num decoded planes: %d", numPlanes);
 
@@ -59,10 +59,10 @@ int mainy(int truncate, const char *fname) {
   FileIO fileio(file, fname, truncate);
   if (!flif_decode(fileio, images, quality, scale)) return 3;
   printf("Num decoded images: %d\n", images.size());
-  Image firstImage = images[0];
+  Image& firstImage = images[0];
   showImage(firstImage);
 
-  for (Image img : images) {
+  for (Image& img : images) {
     img.clear();
   }
 
