@@ -1,5 +1,4 @@
-#ifndef _RAC_SYMBOL_H_
-#define _RAC_SYMBOL_H_ 1
+#pragma once
 
 #ifdef STATS
 #include <stdio.h>
@@ -413,5 +412,3 @@ public:
     }
 #endif
 };
-
-#endif
