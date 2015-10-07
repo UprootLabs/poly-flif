@@ -20,6 +20,7 @@
 var splitPosition = 0.5;
 var viewWidth = 0;
 var viewHeight = 0;
+var viewLocked = false;
 
 function setElementDimension(query, w, h) {
   var e = document.querySelector(query);
@@ -55,12 +56,14 @@ function setElementTop(query, t) {
 }
 
 function moveSplit(event) {
+  if (!viewLocked) {
   var view = document.getElementById("viewer");
   var offset = view.getBoundingClientRect();
   var x = Math.max(0, event.clientX - offset.left);
   var y = Math.max(0, event.clientY - offset.top);
 
   splitPosition = x / viewWidth;
+  }
 
   updateSplit();
 
@@ -69,10 +72,38 @@ function moveSplit(event) {
   return false;
 }
 
+function lockRightView() {
+  splitPosition = 1;
+  viewLocked = true;
+  document.getElementById("viewer").classList.remove("unlocked");
+}
+
+function unLockRightView() {
+  splitPosition = 0.5;
+  viewLocked = false;
+  document.getElementById("viewer").classList.add("unlocked");
+}
+
 /* } End of Viewer */
+
+var imgInfoPatch = {
+  "sping": {imgSize: {width:  148, height: 148 }},
+  "tea": {imgSize: {width: 496, height: 320}}
+}
 
 function init() {
   window.viewer.parentElement.hidden = true;
+  for (ii in imgInfos) {
+   var imgInfo = imgInfos[ii];
+   if (imgInfo.name) {
+     if (!imgInfo.imgSize) {
+       imgInfo.imgSize = imgInfoPatch[imgInfo.name].imgSize;
+       imgInfo.category = "anim";
+     } else {
+       imgInfo.category = "still";
+     }
+   }
+  }
   imgInfos.sort(function (a, b) {
     if (!b.imgSize) {
       return 1;
@@ -243,7 +274,6 @@ function decodePng() {
     var truncateAmount = 100 - truncateInput.value;
 
     var imgInfo = imgInfos[imgIdx];
-    updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
     var path = "assets/"+imgInfo.name+"-i.png";
     getURLAsBytes(path, function (content) {
       var blob = new Blob([content], {type: 'image/png'});
@@ -271,8 +301,15 @@ function decode() {
   var imgIdx = imageSelect.selectedIndex;
 
   if (imgIdx > 0) {
-    decodePng();
-    var path = "assets/"+imgInfos[imgIdx].name+".flif";
+    var imgInfo = imgInfos[imgIdx];
+    if (imgInfo.category == "still") {
+      decodePng();
+      unLockRightView();
+    } else {
+      lockRightView();
+    }
+    updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
+    var path = "assets/"+imgInfo.name+".flif";
     // loadFile("/" + path, path, function () {
     var bufId = reserveBuffer(path);
     loadBytes(bufId, path, function () {
@@ -302,10 +339,14 @@ function decodeSync(bufId, imgIdx) {
     setTimeout(function() {
       Module.ccall("mainy", 'number', ['number', 'number', 'string'], [truncateAmount, bufId, "/assets/"+info.name+".flif"]);
       // Module.setStatus("Decoded with " + truncateAmount + "% stream");
-      if (truncateAmount == 100) {
-        Module.setStatus("Comparing with original image");
+      if (info.category == "still") {
+        if (truncateAmount == 100) {
+          Module.setStatus("Comparing with original image");
+        } else {
+          Module.setStatus("Comparing with same sized PNG");
+        }
       } else {
-        Module.setStatus("Comparing with same sized PNG");
+        Module.setStatus("Viewing FLIF animation");
       }
     }, 10);
   }

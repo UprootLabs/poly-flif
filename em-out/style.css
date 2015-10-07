@@ -101,12 +101,19 @@ canvas.emscripten { border: 0px none; }
 #credits a { color: grey }
 #controls label { color: grey; padding-bottom: .1em; }
 
+.viewer-parent {
+  min-width: 200px;
+  min-height: 200px;
+}
 
 #viewer {
   position:relative;
-  cursor: ew-resize;
+  margin: 0 auto;
 }
 
+#viewer.unlocked {
+  cursor: ew-resize;
+}
 
 #viewer-left, #viewer-right {
   overflow:hidden;

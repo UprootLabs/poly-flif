@@ -4,19 +4,30 @@ echo "  {},"
 for f in $1/*.flif; do 
   flifBaseName=$(basename "$f")
   imgName="${flifBaseName%.*}"
-  pngFileName="${f%.*}-i.png"
-
   flifSize=$( stat -c '%s' "$f" )
-  pngSize=$( stat -c '%s' "$pngFileName" )
-
-  imgInfo=`pnginfo $pngFileName | head -2 | tail -1`
-
-  [[ $imgInfo =~ (.*)Width:\ ([[:digit:]]+).*Length:\ ([[:digit:]]+) ]] && width=${BASH_REMATCH[2]};height=${BASH_REMATCH[3]}
-
 
   echo "  { name: '$imgName',"
-  echo "    imgSize: { width: $width, height: $height},"
-  echo "    fileSizes: { flif: $flifSize, png: $pngSize}"
+  echo "    fileSizes: { flif: $flifSize"
+
+  pngFileName="${f%.*}-i.png"
+  if [[ -e "$pngFileName" ]] ; then
+
+    pngFileName="${f%.*}-i.png"
+
+    pngSize=$( stat -c '%s' "$pngFileName" )
+
+    echo "      , png: $pngSize}, "
+
+    imgInfo=`pnginfo $pngFileName | head -2 | tail -1`
+
+    [[ $imgInfo =~ (.*)Width:\ ([[:digit:]]+).*Length:\ ([[:digit:]]+) ]] && width=${BASH_REMATCH[2]};height=${BASH_REMATCH[3]}
+
+    echo "    imgSize: { width: $width, height: $height},"
+  else
+    echo "     }"
+  fi
+
+
   echo "  },"
 done;
 
