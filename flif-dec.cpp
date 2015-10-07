@@ -24,6 +24,8 @@ bool isEOF(FILE *fp) {
   }
 }
 
+using namespace maniac::util;
+
 template<typename RAC> std::string static read_name(RAC& rac)
 {
     UniformSymbolCoder<RAC> coder(rac);
@@ -465,7 +467,6 @@ bool flif_decode(IO& io, Images &images, int quality, int scale)
     pixels_todo = 0;
     pixels_done = 0;
 
-    io.close();
     return true;
 }
 

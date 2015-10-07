@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <string.h>
 
@@ -12,6 +13,15 @@
 #include "flif_config.h"
 
 #include "io.h"
+
+enum class Optional : uint8_t {
+  undefined = 0
+};
+
+enum class flifEncoding : uint8_t {
+  nonInterlaced = 1,
+  interlaced = 2
+};
 
 extern std::vector<ColorVal> grey; // a pixel with values in the middle of the bounds
 extern int64_t pixels_todo;
