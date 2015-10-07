@@ -20,12 +20,16 @@ var imgInfos = [
       , png: 1943037}, 
     imgSize: { width: 1132, height: 849},
   },
-  { name: 'sping',
+  { name: 'spinfox',
     fileSizes: { flif: 384951
      }
   },
   { name: 'tea',
     fileSizes: { flif: 556807
+     }
+  },
+  { name: 'train',
+    fileSizes: { flif: 1326135
      }
   },
   { name: 'watch_by8',

@@ -87,8 +87,9 @@ function unLockRightView() {
 /* } End of Viewer */
 
 var imgInfoPatch = {
-  "sping": {imgSize: {width:  148, height: 148 }},
-  "tea": {imgSize: {width: 496, height: 320}}
+  "spinfox": {imgSize: {width:  148, height: 148 }},
+  "tea": {imgSize: {width: 496, height: 320}},
+  "train": {imgSize: {width: 494, height: 371}}
 }
 
 function init() {
