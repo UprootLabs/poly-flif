@@ -1,11 +1,13 @@
 body {
   font-family: arial;
   margin: 0;
-  padding: none;
+  padding: 0;
+  background: #fffff9;
 }
 
 #topBanner {
   background-color: lightyellow;
+  text-align: center;
 }
 
 .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
@@ -165,6 +167,19 @@ canvas.emscripten { border: 0px none; }
   border-right:1px dotted grey;
   padding-left:1em;
   padding-right:1em;
+}
+
+@media (min-width: 1024px) {
+
+.inputGroup {
+  padding-left:2em;
+  padding-right:2em;
+}
+
+#controls .header {
+  padding-right: 1em;
+}
+
 }
 
 .inputGroup label {
