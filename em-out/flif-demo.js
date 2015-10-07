@@ -220,9 +220,9 @@ function setLeftInfo(title, truncSize, fullSize) {
 
 function humanize(length) {
   return (length > (1024 * 1024)) ?
-           ''+(Math.round((length / (1024*1024))*10)/10)+'mB' :
+           ''+(Math.round((length / (1024*1024))*10)/10)+'MB' :
            (
-             (length > 1024) ?  ''+(Math.round((length / 1024)*10)/10)+'kB' : ''+length+'B'
+             (length > 1024) ?  ''+(Math.round((length / 1024)*10)/10)+'KB' : ''+length+'B'
            );
   
 }
