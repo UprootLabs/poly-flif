@@ -113,16 +113,18 @@ function init() {
       return a.imgSize.height - b.imgSize.height;
     }
   });
-  var selectElem = document.getElementById('imageSelect');
-  function addOption(idx, title) {
+  var stillsGroupElem = document.querySelector('#imageSelect .stillsGroup');
+  var animsGroupElem = document.querySelector('#imageSelect .animationsGroup');
+  function addOption(idx, title, category) {
     var optElem = document.createElement("option");
-    optElem.setAttribute("value", "value"+idx);
+    optElem.setAttribute("value", idx);
     optElem.textContent = title;
-    selectElem.appendChild(optElem);
+    var elem = category == "anim" ? animsGroupElem : stillsGroupElem;
+    elem.appendChild(optElem);
   }
   for (var i = 1; i < imgInfos.length; i++) {
     var info = imgInfos[i];
-    addOption(i, info.name + " " + info.imgSize.width + " x " + info.imgSize.height);
+    addOption(i, info.name + " " + info.imgSize.width + " x " + info.imgSize.height, info.category);
   }
   document.getElementById("viewer").addEventListener("mousemove", moveSplit, false);
   bgColorChanged();
@@ -135,6 +137,11 @@ function init() {
 init();
 
 function resetView() {
+  var anims = window["flifAnims"];
+  if (anims) {
+    anims.play = false;
+  }
+
   window.viewer.parentElement.hidden = false;
   document.getElementById('pngImg').src = ""
   var canvas = document.getElementById('canvas');
@@ -266,8 +273,7 @@ function setInfo(query, titleStr, truncSize, fullSize) {
 }
 
 function decodePng() {
-  var imageSelect = document.getElementById('imageSelect');
-  var imgIdx = imageSelect.selectedIndex;
+  var imgIdx = getSelectedIdx();
 
   if (imgIdx > 0) {
     var truncateInput = document.getElementById('truncate');
@@ -292,13 +298,17 @@ function decodePng() {
   }
 }
 
+function getSelectedIdx() {
+  var imageSelect = document.getElementById('imageSelect');
+  return parseInt(imageSelect.selectedOptions[0].getAttribute("value"));
+}
+
 function decode() {
   resetView();
 
   ensureDir("/assets");
 
-  var imageSelect = document.getElementById('imageSelect');
-  var imgIdx = imageSelect.selectedIndex;
+  var imgIdx = getSelectedIdx();
 
   if (imgIdx > 0) {
     var imgInfo = imgInfos[imgIdx];

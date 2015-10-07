@@ -131,6 +131,9 @@ canvas.emscripten { border: 0px none; }
   top:0;
   right:0;
   width:50%;
+}
+
+#viewer.unlocked #viewer-right {
   border-left: 1px solid rgba(200, 200, 0, 0.7);
 }
 

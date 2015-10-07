@@ -11,6 +11,12 @@ void initCanvasDraw();
 void putPixel(int j, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void showRow(int i);
 void finishCanvasDraw();
+
+
+void initAnimImage(int n, int width, int height);
+void putRow(int n, int i, uint8_t *data);
+void finishAnimTx();
+
 }
 
 void showImageQuick(Image& firstImage) {
@@ -40,6 +46,35 @@ void showImageQuick(Image& firstImage) {
   }
 
   finishCanvasDraw();
+}
+
+void transferAnim(Images& images) {
+  int nImages = images.size();
+  auto& firstImage = images[0];
+  const int iWidth = firstImage.cols();
+  const int iHeight = firstImage.rows();
+
+  uint8_t rowData[iWidth * iHeight * 4];
+
+  for (int n = 0; n < nImages; n++) {
+    auto& image = images[n];
+    int numPlanes = firstImage.numPlanes();
+
+    initAnimImage(n, iWidth, iHeight);
+  
+    for (int i = 0; i < iHeight; i++) {
+      for (int j = 0; j < iWidth; j++) {
+        auto idx = j*4;
+        rowData[idx    ] = image(0, i, j);
+        rowData[idx + 1] = image(1, i, j);
+        rowData[idx + 2] = image(2, i, j);
+        rowData[idx + 3] = numPlanes > 3 ? image(3, i, j) : 255;
+      }
+      putRow(n, i, rowData);
+    }
+  }
+  
+  finishAnimTx();
 }
 
 void showImage(Image& firstImage) {
@@ -97,8 +132,12 @@ int mainy(int truncate, const int bufId, const char* bufName) {
   BufferIO bufio(bufId, bufName, truncate);
   if (!flif_decode(bufio, images, quality, scale)) return 3;
   printf("Num decoded images: %d\n", images.size());
-  Image& firstImage = images[0];
-  showImageQuick(firstImage);
+  if (images.size() > 1) {
+    transferAnim(images);
+  } else {
+    Image& firstImage = images[0];
+    showImageQuick(firstImage);
+  }
 
   for (Image& img : images) {
     img.clear();
