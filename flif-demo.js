@@ -20,6 +20,7 @@
 var splitPosition = 0.5;
 var viewWidth = 0;
 var viewHeight = 0;
+var viewLocked = false;
 
 function setElementDimension(query, w, h) {
   var e = document.querySelector(query);
@@ -55,12 +56,14 @@ function setElementTop(query, t) {
 }
 
 function moveSplit(event) {
+  if (!viewLocked) {
   var view = document.getElementById("viewer");
   var offset = view.getBoundingClientRect();
   var x = Math.max(0, event.clientX - offset.left);
   var y = Math.max(0, event.clientY - offset.top);
 
   splitPosition = x / viewWidth;
+  }
 
   updateSplit();
 
@@ -69,30 +72,83 @@ function moveSplit(event) {
   return false;
 }
 
+function lockRightView() {
+  splitPosition = 1;
+  viewLocked = true;
+  document.getElementById("viewer").classList.remove("unlocked");
+}
+
+function unLockRightView() {
+  splitPosition = 0.5;
+  viewLocked = false;
+  document.getElementById("viewer").classList.add("unlocked");
+}
+
 /* } End of Viewer */
 
-function init() {
-  window.viewer.parentElement.hidden = true;
+var imgInfoPatch = {
+  "spinfox": {imgSize: {width:  148, height: 148 }},
+  "tea": {imgSize: {width: 496, height: 320}},
+  "train": {imgSize: {width: 494, height: 371}},
+  "clock": {imgSize: {width: 150, height: 150}},
+  "pyani": {imgSize: {width: 200, height: 125}}
+}
+
+function padStringRight(width, string, padding) {
+  var defficiency = width - string.length;
+  var result = string;
+  for (var i = 0; i < defficiency; i++) {
+    result = result + padding;
+  }
+  return result;
+}
+
+function initImgInfo() {
+  for (ii in imgInfos) {
+   var imgInfo = imgInfos[ii];
+   if (imgInfo.name) {
+     if (!imgInfo.imgSize) {
+       imgInfo.imgSize = imgInfoPatch[imgInfo.name].imgSize;
+       imgInfo.category = "anim";
+     } else {
+       imgInfo.category = "still";
+     }
+   }
+  }
   imgInfos.sort(function (a, b) {
     if (!b.imgSize) {
       return 1;
     } else if (!a.imgSize) {
       return -1;
     } else {
-      return a.imgSize.height - b.imgSize.height;
+      return (a.imgSize.height * a.imgSize.width) - (b.imgSize.width * b.imgSize.height);
     }
   });
-  var selectElem = document.getElementById('imageSelect');
-  function addOption(idx, title) {
+}
+
+function initImgSelect() {
+  var stillsGroupElem = document.querySelector('#imageSelect .stillsGroup');
+  var animsGroupElem = document.querySelector('#imageSelect .animationsGroup');
+  function addOption(idx, title, category) {
     var optElem = document.createElement("option");
-    optElem.setAttribute("value", "value"+idx);
-    optElem.textContent = title;
-    selectElem.appendChild(optElem);
+    optElem.setAttribute("value", idx);
+    optElem.innerHTML = title;
+    var elem = category == "anim" ? animsGroupElem : stillsGroupElem;
+    elem.appendChild(optElem);
   }
   for (var i = 1; i < imgInfos.length; i++) {
     var info = imgInfos[i];
-    addOption(i, info.name + " " + info.imgSize.width + " x " + info.imgSize.height);
+    var dimStr = "(" + info.imgSize.width + " x " + info.imgSize.height + ")";
+    addOption(i, padStringRight(10, info.name, "&nbsp;") + dimStr, info.category);
   }
+}
+
+function init() {
+  window.viewer.parentElement.hidden = true;
+
+  initImgInfo();
+  initImgSelect();
+
   document.getElementById("viewer").addEventListener("mousemove", moveSplit, false);
   bgColorChanged();
 
@@ -104,6 +160,11 @@ function init() {
 init();
 
 function resetView() {
+  var anims = window["flifAnims"];
+  if (anims) {
+    anims.play = false;
+  }
+
   window.viewer.parentElement.hidden = false;
   document.getElementById('pngImg').src = ""
   var canvas = document.getElementById('canvas');
@@ -220,9 +281,9 @@ function setLeftInfo(title, truncSize, fullSize) {
 
 function humanize(length) {
   return (length > (1024 * 1024)) ?
-           ''+(Math.round((length / (1024*1024))*10)/10)+'mB' :
+           ''+(Math.round((length / (1024*1024))*10)/10)+'MB' :
            (
-             (length > 1024) ?  ''+(Math.round((length / 1024)*10)/10)+'kB' : ''+length+'B'
+             (length > 1024) ?  ''+(Math.round((length / 1024)*10)/10)+'KB' : ''+length+'B'
            );
   
 }
@@ -235,15 +296,13 @@ function setInfo(query, titleStr, truncSize, fullSize) {
 }
 
 function decodePng() {
-  var imageSelect = document.getElementById('imageSelect');
-  var imgIdx = imageSelect.selectedIndex;
+  var imgIdx = getSelectedIdx();
 
   if (imgIdx > 0) {
     var truncateInput = document.getElementById('truncate');
     var truncateAmount = 100 - truncateInput.value;
 
     var imgInfo = imgInfos[imgIdx];
-    updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
     var path = "assets/"+imgInfo.name+"-i.png";
     getURLAsBytes(path, function (content) {
       var blob = new Blob([content], {type: 'image/png'});
@@ -262,17 +321,28 @@ function decodePng() {
   }
 }
 
+function getSelectedIdx() {
+  var imageSelect = document.getElementById('imageSelect');
+  return parseInt(imageSelect.selectedOptions[0].getAttribute("value"));
+}
+
 function decode() {
   resetView();
 
   ensureDir("/assets");
 
-  var imageSelect = document.getElementById('imageSelect');
-  var imgIdx = imageSelect.selectedIndex;
+  var imgIdx = getSelectedIdx();
 
   if (imgIdx > 0) {
-    decodePng();
-    var path = "assets/"+imgInfos[imgIdx].name+".flif";
+    var imgInfo = imgInfos[imgIdx];
+    if (imgInfo.category == "still") {
+      decodePng();
+      unLockRightView();
+    } else {
+      lockRightView();
+    }
+    updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
+    var path = "assets/"+imgInfo.name+".flif";
     // loadFile("/" + path, path, function () {
     var bufId = reserveBuffer(path);
     loadBytes(bufId, path, function () {
@@ -302,10 +372,14 @@ function decodeSync(bufId, imgIdx) {
     setTimeout(function() {
       Module.ccall("mainy", 'number', ['number', 'number', 'string'], [truncateAmount, bufId, "/assets/"+info.name+".flif"]);
       // Module.setStatus("Decoded with " + truncateAmount + "% stream");
-      if (truncateAmount == 100) {
-        Module.setStatus("Comparing with original image");
+      if (info.category == "still") {
+        if (truncateAmount == 100) {
+          Module.setStatus("Comparing with original image");
+        } else {
+          Module.setStatus("Comparing with same sized PNG");
+        }
       } else {
-        Module.setStatus("Comparing with same sized PNG");
+        Module.setStatus("Viewing FLIF animation");
       }
     }, 10);
   }

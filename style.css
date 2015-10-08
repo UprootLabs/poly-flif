@@ -1,7 +1,8 @@
 body {
   font-family: arial;
   margin: 0;
-  padding: none;
+  padding: 0;
+  background: #fffff9;
 }
 
 #topBanner {
@@ -44,7 +45,8 @@ canvas.emscripten { border: 0px none; }
   vertical-align: middle;
   margin-left: 20px;
   font-weight: bold;
-  color: rgb(20, 20, 20);
+  color: rgb(60, 60, 60);
+  width: 18em;
 }
 
 #progress {
@@ -85,8 +87,9 @@ canvas.emscripten { border: 0px none; }
   top:15%;
   display:none;
   padding: 1em 2em;
-  background-color: lightgrey;
-  border: 8px solid grey;
+  background-color: #ffe;
+  border: 8px solid #eeb;
+  line-height: 1.5em;
 }
 #aboutModal.visible { display: block }
 .closeButton {text-align: right; margin:0;}
@@ -99,12 +102,19 @@ canvas.emscripten { border: 0px none; }
 #credits a { color: grey }
 #controls label { color: grey; padding-bottom: .1em; }
 
+.viewer-parent {
+  min-width: 200px;
+  min-height: 200px;
+}
 
 #viewer {
   position:relative;
-  cursor: ew-resize;
+  margin: 0 auto;
 }
 
+#viewer.unlocked {
+  cursor: ew-resize;
+}
 
 #viewer-left, #viewer-right {
   overflow:hidden;
@@ -122,6 +132,9 @@ canvas.emscripten { border: 0px none; }
   top:0;
   right:0;
   width:50%;
+}
+
+#viewer.unlocked #viewer-right {
   border-left: 1px solid rgba(200, 200, 0, 0.7);
 }
 
@@ -167,6 +180,26 @@ canvas.emscripten { border: 0px none; }
   padding-right:1em;
 }
 
+@media (min-width: 1300px) {
+
+.inputGroup {
+  padding-left:2em;
+  padding-right:2em;
+}
+
+#controls .header {
+  padding-right: 1em;
+}
+
+#topBanner {
+  text-align: center;
+}
+}
+
 .inputGroup label {
   display: block;
+}
+
+#imageSelect {
+  font-family: monospace;
 }
