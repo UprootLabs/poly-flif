@@ -7,7 +7,6 @@ body {
 
 #topBanner {
   background-color: lightyellow;
-  text-align: center;
 }
 
 .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
@@ -46,7 +45,8 @@ canvas.emscripten { border: 0px none; }
   vertical-align: middle;
   margin-left: 20px;
   font-weight: bold;
-  color: rgb(20, 20, 20);
+  color: rgb(60, 60, 60);
+  width: 18em;
 }
 
 #progress {
@@ -87,8 +87,9 @@ canvas.emscripten { border: 0px none; }
   top:15%;
   display:none;
   padding: 1em 2em;
-  background-color: lightgrey;
-  border: 8px solid grey;
+  background-color: #ffe;
+  border: 8px solid #eeb;
+  line-height: 1.5em;
 }
 #aboutModal.visible { display: block }
 .closeButton {text-align: right; margin:0;}
@@ -179,7 +180,7 @@ canvas.emscripten { border: 0px none; }
   padding-right:1em;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1300px) {
 
 .inputGroup {
   padding-left:2em;
@@ -190,8 +191,15 @@ canvas.emscripten { border: 0px none; }
   padding-right: 1em;
 }
 
+#topBanner {
+  text-align: center;
+}
 }
 
 .inputGroup label {
   display: block;
+}
+
+#imageSelect {
+  font-family: monospace;
 }

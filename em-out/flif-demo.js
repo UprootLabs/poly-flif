@@ -92,8 +92,16 @@ var imgInfoPatch = {
   "train": {imgSize: {width: 494, height: 371}}
 }
 
-function init() {
-  window.viewer.parentElement.hidden = true;
+function padStringRight(width, string, padding) {
+  var defficiency = width - string.length;
+  var result = string;
+  for (var i = 0; i < defficiency; i++) {
+    result = result + padding;
+  }
+  return result;
+}
+
+function initImgInfo() {
   for (ii in imgInfos) {
    var imgInfo = imgInfos[ii];
    if (imgInfo.name) {
@@ -111,22 +119,34 @@ function init() {
     } else if (!a.imgSize) {
       return -1;
     } else {
-      return a.imgSize.height - b.imgSize.height;
+      return (a.imgSize.height * a.imgSize.width) - (b.imgSize.width * b.imgSize.height);
     }
   });
+}
+
+function initImgSelect() {
   var stillsGroupElem = document.querySelector('#imageSelect .stillsGroup');
   var animsGroupElem = document.querySelector('#imageSelect .animationsGroup');
   function addOption(idx, title, category) {
     var optElem = document.createElement("option");
     optElem.setAttribute("value", idx);
-    optElem.textContent = title;
+    optElem.innerHTML = title;
     var elem = category == "anim" ? animsGroupElem : stillsGroupElem;
     elem.appendChild(optElem);
   }
   for (var i = 1; i < imgInfos.length; i++) {
     var info = imgInfos[i];
-    addOption(i, info.name + " " + info.imgSize.width + " x " + info.imgSize.height, info.category);
+    var dimStr = "(" + info.imgSize.width + " x " + info.imgSize.height + ")";
+    addOption(i, padStringRight(10, info.name, "&nbsp;") + dimStr, info.category);
   }
+}
+
+function init() {
+  window.viewer.parentElement.hidden = true;
+
+  initImgInfo();
+  initImgSelect();
+
   document.getElementById("viewer").addEventListener("mousemove", moveSplit, false);
   bgColorChanged();
 
