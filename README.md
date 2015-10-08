@@ -7,13 +7,14 @@ A browser poly fill for [FLIF](http://flif.info).
 
 Alpha. Not tested on all browsers. Performance and size is still being optimised. 
 
-Current JS size: 217kB (68kB minimised).
+Current JS size: 220KB (68KB minimised).
+Mem layout file (will be folded into JS later): 15KB.
 
 # Roadmap
 
-* Support animations. [#2](https://github.com/UprootLabs/poly-flif/issues/2)
 * Design a proper API [#6](https://github.com/UprootLabs/poly-flif/issues/6)
 * Code size reduction and performance optimisation.
+* Animation speed and loop control. [#2](https://github.com/UprootLabs/poly-flif/issues/2)
 
 # What is FLIF
 
