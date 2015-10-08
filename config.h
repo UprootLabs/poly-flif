@@ -15,5 +15,5 @@
 #define CHECK_FOR_BROKENFILES 1
 
 // include encoder related functionality in build. Diable when only interested in decoder
-#define HAS_ENCODER  1
+// #define HAS_ENCODER  1
 
