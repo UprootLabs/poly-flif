@@ -12,6 +12,13 @@ EM_SCRIPT_OPTIONS+= -s ASSERTIONS=0
 EM_SCRIPT_OPTIONS+= --closure 1
 EM_SCRIPT_OPTIONS+=-s ASM_JS=2
 
+#EM_SCRIPT_OPTIONS+=-s MODULARIZE=1
+EM_SCRIPT_OPTIONS+=-s AGGRESSIVE_VARIABLE_ELIMINATION=1
+EM_SCRIPT_OPTIONS+=-s RUNNING_JS_OPTS=1
+EM_SCRIPT_OPTIONS+=-s DISABLE_EXCEPTION_CATCHING=1
+EM_SCRIPT_OPTIONS+=-s NO_EXIT_RUNTIME=1
+EM_SCRIPT_OPTIONS+= -s USE_SDL=0
+
 CXXFLAGS += ${EM_SCRIPT_OPTIONS}
 
 em-out/flif.html: maniac/*.h maniac/*.cpp image/*.h image/*.cpp transform/*.h transform/*.cpp flif-em.cpp flif-enc.cpp flif-dec.cpp common.cpp flif-enc.h flif-dec.h common.h flif_config.h fileio.h bufferio.h io.h io.cpp Makefile flif-library.js
