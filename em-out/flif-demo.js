@@ -89,7 +89,9 @@ function unLockRightView() {
 var imgInfoPatch = {
   "spinfox": {imgSize: {width:  148, height: 148 }},
   "tea": {imgSize: {width: 496, height: 320}},
-  "train": {imgSize: {width: 494, height: 371}}
+  "train": {imgSize: {width: 494, height: 371}},
+  "clock": {imgSize: {width: 150, height: 150}},
+  "pyani": {imgSize: {width: 200, height: 125}}
 }
 
 function padStringRight(width, string, padding) {
