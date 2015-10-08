@@ -16,7 +16,7 @@ for f in $1/*.flif; do
 
     pngSize=$( stat -c '%s' "$pngFileName" )
 
-    echo "      , png: $pngSize}, "
+    echo "      , png: $pngSize},"
 
     imgInfo=`pnginfo $pngFileName | head -2 | tail -1`
 
