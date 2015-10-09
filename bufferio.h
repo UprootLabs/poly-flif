@@ -1,5 +1,4 @@
-#ifndef FLIF_BUFFERIO_H
-#define FLIF_BUFFERIO_H
+#pragma once
 
 #include <stdexcept>
 
@@ -99,5 +98,3 @@ public:
     return name;
   }
 };
-
-#endif

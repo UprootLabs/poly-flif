@@ -1,7 +1,6 @@
+#if 0
 #include <stdio.h>
 #include <stdarg.h>
-
-#if 0
 #include "io.h"
 #endif
 
