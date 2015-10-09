@@ -5,9 +5,9 @@ A browser poly fill for [FLIF](http://flif.info).
 
 ## Status
 
-Alpha. Not tested on all browsers. Performance and size is still being optimised. 
+Beta. Not tested on all browsers. Performance and size is still being optimised. 
 
-Current JS size: 250KB (79KB minimised).
+Current JS size: 215KB (56KB gzipped).
 
 # Roadmap
 
