@@ -21,7 +21,6 @@ void finishAnimTx();
 
 void showImageQuick(Image& firstImage) {
   int numPlanes = firstImage.numPlanes();
-  printf("Num decoded planes: %d", numPlanes);
 
   const int iWidth = firstImage.cols();
   const int iHeight = firstImage.rows();
@@ -79,7 +78,6 @@ void transferAnim(Images& images) {
 
 void showImage(Image& firstImage) {
   int numPlanes = firstImage.numPlanes();
-  printf("Num decoded planes: %d", numPlanes);
 
   const int iWidth = firstImage.cols();
   const int iHeight = firstImage.rows();
@@ -131,7 +129,6 @@ int mainy(int truncate, const int bufId, const char* bufName) {
 
   BufferIO bufio(bufId, bufName, truncate);
   if (!flif_decode(bufio, images, quality, scale)) return 3;
-  printf("Num decoded images: %d\n", images.size());
   if (images.size() > 1) {
     transferAnim(images);
   } else {
