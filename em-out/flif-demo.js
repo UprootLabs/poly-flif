@@ -295,7 +295,7 @@ function setInfo(query, titleStr, truncSize, fullSize) {
   document.querySelector(query).innerHTML = htmlStr;
 }
 
-function decodePng() {
+function decodeNative(suffix, mediaType) {
   var imgIdx = getSelectedIdx();
 
   if (imgIdx > 0) {
@@ -303,9 +303,9 @@ function decodePng() {
     var truncateAmount = 100 - truncateInput.value;
 
     var imgInfo = imgInfos[imgIdx];
-    var path = "assets/"+imgInfo.name+"-i.png";
+    var path = "assets/"+imgInfo.name+suffix;
     getURLAsBytes(path, function (content) {
-      var blob = new Blob([content], {type: 'image/png'});
+      var blob = new Blob([content], {type: mediaType});
       if (truncateAmount != 100) {
         // var truncatedSize =  Math.floor(content.length * (truncateAmount / 100));
         var flifSize = imgInfo.fileSizes.flif;
@@ -336,7 +336,11 @@ function decode() {
   if (imgIdx > 0) {
     var imgInfo = imgInfos[imgIdx];
     if (imgInfo.category == "still") {
-      decodePng();
+      if (imgInfo.fileSizes.jpg) {
+        decodeNative("-p.jpg", "image/jpeg");
+      } else {
+        decodeNative("-i.png", "image/png");
+      }
       unLockRightView();
     } else {
       lockRightView();

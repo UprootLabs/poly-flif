@@ -12,21 +12,39 @@ for f in $1/*.flif; do
   pngFileName="${f%.*}-i.png"
   if [[ -e "$pngFileName" ]] ; then
 
-    pngFileName="${f%.*}-i.png"
-
     pngSize=$( stat -c '%s' "$pngFileName" )
 
-    echo "      , png: $pngSize},"
+    echo "      , png: $pngSize"
 
     imgInfo=`pnginfo $pngFileName | head -2 | tail -1`
 
     [[ $imgInfo =~ (.*)Width:\ ([[:digit:]]+).*Length:\ ([[:digit:]]+) ]] && width=${BASH_REMATCH[2]};height=${BASH_REMATCH[3]}
 
-    echo "    imgSize: { width: $width, height: $height},"
-  else
-    echo "     }"
   fi
 
+  jpgFileName="${f%.*}-p.jpg"
+  if [[ -e "$jpgFileName" ]] ; then
+
+    jpgSize=$( stat -c '%s' "$jpgFileName" )
+
+    echo "      , jpg: $jpgSize"
+
+    if [[ -z imgInfo ]] ; then
+      imgInfo=`jpeginfo $pngFileName`
+
+      [[ $imgInfo =~ ([^\s]+)\ ([[:digit:]]+)\ x\ ([[:digit:]]+) ]] && width=${BASH_REMATCH[2]};height=${BASH_REMATCH[3]}
+
+    fi
+  fi
+
+  echo "     },"
+
+  if [[ -n $width ]] ; then 
+    echo "    imgSize: { width: $width, height: $height},"
+  fi
+
+  width=""
+  height=""
 
   echo "  },"
 done;
