@@ -181,11 +181,11 @@ function hideAbout() {
 }
 
 function truncateChanged() {
-  decode();
+  decode(false);
 }
 
 function imageChanged() {
-  decode();
+  decode(true);
 }
 
 function bgColorChanged() {
@@ -295,85 +295,141 @@ function setInfo(query, titleStr, truncSize, fullSize) {
   document.querySelector(query).innerHTML = htmlStr;
 }
 
-function decodePng() {
-  var imgIdx = getSelectedIdx();
+function decodeNative(imgInfo, decodeInfo) {
 
-  if (imgIdx > 0) {
-    var truncateInput = document.getElementById('truncate');
-    var truncateAmount = 100 - truncateInput.value;
+  var truncateInput = document.getElementById('truncate');
+  var retainedPercent = decodeInfo.retainFull ? 100 : 100 - truncateInput.value;
 
-    var imgInfo = imgInfos[imgIdx];
-    var path = "assets/"+imgInfo.name+"-i.png";
-    getURLAsBytes(path, function (content) {
-      var blob = new Blob([content], {type: 'image/png'});
-      if (truncateAmount != 100) {
-        // var truncatedSize =  Math.floor(content.length * (truncateAmount / 100));
-        var flifSize = imgInfo.fileSizes.flif;
-        var truncatedSize =  Math.min(content.length, Math.floor(flifSize * (truncateAmount / 100)));
-        setRightInfo("PNG", truncatedSize, content.length);
-        blob = blob.slice(0, truncatedSize);
-      } else {
-        setRightInfo("PNG", content.length, content.length);
-      }
-      var burl = URL.createObjectURL(blob);
-      document.getElementById('pngImg').src = burl;
-    });
-  }
+  var path = "assets/"+imgInfo.name+decodeInfo.suffix;
+  getURLAsBytes(path, function (content) {
+    var blob = new Blob([content], {type: decodeInfo.mediaType});
+    if (retainedPercent != 100) {
+      // var retainedSize =  Math.floor(content.length * (retainedPercent / 100));
+      var flifSize = imgInfo.fileSizes.flif;
+      var retainedSize =  Math.min(content.length, Math.floor(flifSize * (retainedPercent / 100)));
+      setRightInfo(decodeInfo.title, retainedSize, content.length);
+      blob = blob.slice(0, retainedSize);
+    } else {
+      setRightInfo(decodeInfo.title, content.length, content.length);
+    }
+    var burl = URL.createObjectURL(blob);
+    document.getElementById('pngImg').src = burl;
+  });
 }
 
-function getSelectedIdx() {
-  var imageSelect = document.getElementById('imageSelect');
+function getSelectedIdx(id) {
+  var imageSelect = document.getElementById(id);
   return parseInt(imageSelect.selectedOptions[0].getAttribute("value"));
 }
 
-function decode() {
-  resetView();
+var compareChoices = [];
 
-  ensureDir("/assets");
+function createCompareChoices(imgInfo) {
+  var choices = [];
+  if (imgInfo.category == "still") {
+    choices.description = "Comparing with ";
+    choices.push({option: "original image", decode: {title: "PNG", suffix:"-i.png", type:"image/png", retainFull:true}});
+    if (imgInfo.fileSizes.png) {
+      choices.push({option: "same size PNG", decode: {title: "PNG", suffix:"-i.png", type:"image/png", retainFull:false}});
+    }
+    if (imgInfo.fileSizes.jpg) {
+      choices.push({option: "same size JPG", decode: {title: "JPG", suffix:"-p.jpg", type:"image/jpeg", retainFull:false}});
+    }
+  } else {
+    choices.description = "Viewing FLIF animation";
+  }
+  choices.imgInfo = imgInfo;
+  return choices;
+};
 
-  var imgIdx = getSelectedIdx();
-
-  if (imgIdx > 0) {
-    var imgInfo = imgInfos[imgIdx];
-    if (imgInfo.category == "still") {
-      decodePng();
+function handleCompareChoice(choiceIdx, forceDecode) {
+  if (forceDecode || compareChoices.prevChoiceIdx != choiceIdx) {
+    if (compareChoices.length > 0) {
       unLockRightView();
+      var choice = compareChoices[choiceIdx];
+      decodeNative(compareChoices.imgInfo, choice.decode);
     } else {
       lockRightView();
     }
+  }
+
+  compareChoices.prevChoiceIdx = choiceIdx;
+}
+
+function decode(imageChanged) {
+  if(imageChanged) {
+  resetView();
+  }
+
+  ensureDir("/assets");
+
+  var imgIdx = getSelectedIdx('imageSelect');
+
+  if (imgIdx > 0) {
+    if (imageChanged) {
+      var imgInfo = imgInfos[imgIdx];
+      var truncateInput = document.getElementById('truncate');
+      var retainedPercent = 100 - truncateInput.value;
+      compareChoices = createCompareChoices(imgInfo);
+    }
+    handleCompareChoice(imageChanged ? 0 : compareChoices.prevChoiceIdx, true);
+
+    var imgInfo = compareChoices.imgInfo;
     updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
     var path = "assets/"+imgInfo.name+".flif";
     // loadFile("/" + path, path, function () {
     var bufId = reserveBuffer(path);
     loadBytes(bufId, path, function () {
-      decodeSync(bufId, imgIdx);
+      decodeSync(bufId, imgInfo, imageChanged);
     });
+  }
+}
+
+function displayCompareChoices() {
+  if (compareChoices.length > 0) {
+    var selectStr = "<select id='compareSelect'>";
+    for (i = 0; i < compareChoices.length; i++) {
+      selectStr += "<option>" + compareChoices[i].option + "</option>";
+    }
+    selectStr += "</select>";
+    var compareHtml = compareChoices.description + selectStr;
+    Module.setStatus(compareHtml);
+    var compareSelect = document.getElementById('compareSelect');
+    compareSelect.onchange = function() {
+      handleCompareChoice(compareSelect.selectedIndex, false);
+    }
+  } else {
+    Module.setStatus(compareChoices.description);
   }
 }
 
 var jsBuffers = [];
 
-function decodeSync(bufId, imgIdx) {
-  if (imgIdx > 0) {
-    var info = imgInfos[imgIdx];
+function decodeSync(bufId, info, updateChoices) {
     var truncateInput = document.getElementById('truncate');
-    var truncateAmount = 100 - truncateInput.value;
+    var retainedPercent = 100 - truncateInput.value;
     if (info.credit) {
       document.getElementById("credits").innerHTML = "<a href='"+info.credit+"'>Image credit</a>"
     } else {
       document.getElementById("credits").innerHTML = "";
     }
-    Module.setStatus("Decoding...");
+    if (updateChoices) {
+      Module.setStatus("Decoding...");
+    }
 
     var flifSize = info.fileSizes.flif;
-    var truncatedSize = Math.floor(flifSize * (truncateAmount/100));
-    setLeftInfo("FLIF", truncatedSize, flifSize);
+    var retainedSize = Math.floor(flifSize * (retainedPercent/100));
+    setLeftInfo("FLIF", retainedSize, flifSize);
 
     setTimeout(function() {
-      Module.ccall("mainy", 'number', ['number', 'number', 'string'], [truncateAmount, bufId, "/assets/"+info.name+".flif"]);
-      // Module.setStatus("Decoded with " + truncateAmount + "% stream");
+      Module.ccall("mainy", 'number', ['number', 'number', 'string'], [retainedPercent, bufId, "/assets/"+info.name+".flif"]);
+      if (updateChoices) {
+        displayCompareChoices();
+      }
+
+/*
       if (info.category == "still") {
-        if (truncateAmount == 100) {
+        if (retainedPercent == 100) {
           Module.setStatus("Comparing with original image");
         } else {
           Module.setStatus("Comparing with same sized PNG");
@@ -381,6 +437,6 @@ function decodeSync(bufId, imgIdx) {
       } else {
         Module.setStatus("Viewing FLIF animation");
       }
+*/
     }, 10);
-  }
 }
