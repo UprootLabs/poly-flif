@@ -181,11 +181,11 @@ function hideAbout() {
 }
 
 function truncateChanged() {
-  decode();
+  decode(false);
 }
 
 function imageChanged() {
-  decode();
+  decode(true);
 }
 
 function bgColorChanged() {
@@ -297,7 +297,8 @@ function setInfo(query, titleStr, truncSize, fullSize) {
 
 function decodeNative(imgInfo, decodeInfo) {
 
-  var retainedPercent = decodeInfo.retainedPercent;
+  var truncateInput = document.getElementById('truncate');
+  var retainedPercent = decodeInfo.retainFull ? 100 : 100 - truncateInput.value;
 
   var path = "assets/"+imgInfo.name+decodeInfo.suffix;
   getURLAsBytes(path, function (content) {
@@ -323,16 +324,16 @@ function getSelectedIdx(id) {
 
 var compareChoices = [];
 
-function createCompareChoices(imgInfo, retainedPercent) {
+function createCompareChoices(imgInfo) {
   var choices = [];
   if (imgInfo.category == "still") {
     choices.description = "Comparing with ";
-    choices.push({option: "original image", decode: {title: "PNG", suffix:"-i.png", type:"image/png", retainedPercent:100}});
+    choices.push({option: "original image", decode: {title: "PNG", suffix:"-i.png", type:"image/png", retainFull:true}});
     if (imgInfo.fileSizes.png) {
-      choices.push({option: "same size PNG", decode: {title: "PNG", suffix:"-i.png", type:"image/png", retainedPercent:retainedPercent}});
+      choices.push({option: "same size PNG", decode: {title: "PNG", suffix:"-i.png", type:"image/png", retainFull:false}});
     }
     if (imgInfo.fileSizes.jpg) {
-      choices.push({option: "same size JPG", decode: {title: "JPG", suffix:"-p.jpg", type:"image/jpeg", retainedPercent:retainedPercent}});
+      choices.push({option: "same size JPG", decode: {title: "JPG", suffix:"-p.jpg", type:"image/jpeg", retainFull:false}});
     }
   } else {
     choices.description = "Viewing FLIF animation";
@@ -341,42 +342,46 @@ function createCompareChoices(imgInfo, retainedPercent) {
   return choices;
 };
 
-function handleCompareChoice(choiceIdx) {
-  if (compareChoices.prevChoiceIdx != choiceIdx) {
-  if (compareChoices.length > 0) {
-    unLockRightView();
-    var choice = compareChoices[choiceIdx];
-    decodeNative(compareChoices.imgInfo, choice.decode);
-  } else {
-    lockRightView();
+function handleCompareChoice(choiceIdx, forceDecode) {
+  if (forceDecode || compareChoices.prevChoiceIdx != choiceIdx) {
+    if (compareChoices.length > 0) {
+      unLockRightView();
+      var choice = compareChoices[choiceIdx];
+      decodeNative(compareChoices.imgInfo, choice.decode);
+    } else {
+      lockRightView();
+    }
   }
-  }
-  if(compareChoices.prevChoiceIdx == undefined) {
-  var imgInfo = compareChoices.imgInfo;
-  updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
-  var path = "assets/"+imgInfo.name+".flif";
-  // loadFile("/" + path, path, function () {
-  var bufId = reserveBuffer(path);
-  loadBytes(bufId, path, function () {
-    decodeSync(bufId, imgInfo);
-  });
-  }
+
   compareChoices.prevChoiceIdx = choiceIdx;
 }
 
-function decode() {
+function decode(imageChanged) {
+  if(imageChanged) {
   resetView();
+  }
 
   ensureDir("/assets");
 
   var imgIdx = getSelectedIdx('imageSelect');
 
   if (imgIdx > 0) {
-    var imgInfo = imgInfos[imgIdx];
-    var truncateInput = document.getElementById('truncate');
-    var retainedPercent = 100 - truncateInput.value;
-    compareChoices = createCompareChoices(imgInfo, retainedPercent);
-    handleCompareChoice(0);
+    if (imageChanged) {
+      var imgInfo = imgInfos[imgIdx];
+      var truncateInput = document.getElementById('truncate');
+      var retainedPercent = 100 - truncateInput.value;
+      compareChoices = createCompareChoices(imgInfo);
+    }
+    handleCompareChoice(imageChanged ? 0 : compareChoices.prevChoiceIdx, true);
+
+    var imgInfo = compareChoices.imgInfo;
+    updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
+    var path = "assets/"+imgInfo.name+".flif";
+    // loadFile("/" + path, path, function () {
+    var bufId = reserveBuffer(path);
+    loadBytes(bufId, path, function () {
+      decodeSync(bufId, imgInfo, imageChanged);
+    });
   }
 }
 
@@ -391,7 +396,7 @@ function displayCompareChoices() {
     Module.setStatus(compareHtml);
     var compareSelect = document.getElementById('compareSelect');
     compareSelect.onchange = function() {
-      handleCompareChoice(compareSelect.selectedIndex);
+      handleCompareChoice(compareSelect.selectedIndex, false);
     }
   } else {
     Module.setStatus(compareChoices.description);
@@ -400,7 +405,7 @@ function displayCompareChoices() {
 
 var jsBuffers = [];
 
-function decodeSync(bufId, info) {
+function decodeSync(bufId, info, updateChoices) {
     var truncateInput = document.getElementById('truncate');
     var retainedPercent = 100 - truncateInput.value;
     if (info.credit) {
@@ -408,7 +413,9 @@ function decodeSync(bufId, info) {
     } else {
       document.getElementById("credits").innerHTML = "";
     }
-    Module.setStatus("Decoding...");
+    if (updateChoices) {
+      Module.setStatus("Decoding...");
+    }
 
     var flifSize = info.fileSizes.flif;
     var retainedSize = Math.floor(flifSize * (retainedPercent/100));
@@ -416,7 +423,9 @@ function decodeSync(bufId, info) {
 
     setTimeout(function() {
       Module.ccall("mainy", 'number', ['number', 'number', 'string'], [retainedPercent, bufId, "/assets/"+info.name+".flif"]);
-      displayCompareChoices();
+      if (updateChoices) {
+        displayCompareChoices();
+      }
 
 /*
       if (info.category == "still") {
