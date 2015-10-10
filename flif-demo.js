@@ -304,7 +304,7 @@ function decodeNative(imgInfo, decodeInfo) {
   var path = "assets/"+imgInfo.name+decodeInfo.suffix;
   getURLAsBytes(path, function (content) {
     var blob = new Blob([content], {type: decodeInfo.mediaType});
-    if (retainedPercent != 100) {
+    if (!decodeInfo.retainFull) {
       // var retainedSize =  Math.floor(content.length * (retainedPercent / 100));
       var flifSize = imgInfo.fileSizes.flif;
       var retainedSize =  Math.min(content.length, Math.floor(flifSize * (retainedPercent / 100)));
