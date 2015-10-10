@@ -296,6 +296,7 @@ function setInfo(query, titleStr, truncSize, fullSize) {
 }
 
 function decodeNative(imgInfo, decodeInfo) {
+  setRightInfo("Loading", 0, 0);
 
   var truncateInput = document.getElementById('truncate');
   var retainedPercent = decodeInfo.retainFull ? 100 : 100 - truncateInput.value;
@@ -376,6 +377,7 @@ function decode(imageChanged) {
 
     var imgInfo = compareChoices.imgInfo;
     updateViewer(imgInfo.imgSize.width, imgInfo.imgSize.height);
+    setLeftInfo("Loading FLIF", 0, 0);
     var path = "assets/"+imgInfo.name+".flif";
     // loadFile("/" + path, path, function () {
     var bufId = reserveBuffer(path);
