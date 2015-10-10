@@ -12,3 +12,9 @@ flif
 flif.osx
 
 *.swp
+
+#MSVC
+flif*.exe
+*.obj
+*.pdb
+*.ilk
