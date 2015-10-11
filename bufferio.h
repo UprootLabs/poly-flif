@@ -15,17 +15,17 @@ private:
   int size;
   int truncateCount;
   int readCount = 0;
-	
-	// prevent copy
-	BufferIO(const BufferIO&) : bufId(-1) {}
-	void operator=(const BufferIO&) {}
-	// prevent move, for now
-	BufferIO(BufferIO&&) : bufId(-1) {}
-	void operator=(BufferIO&&) {}
+  
+  // prevent copy
+  BufferIO(const BufferIO&) : bufId(-1) {}
+  void operator=(const BufferIO&) {}
+  // prevent move, for now
+  BufferIO(BufferIO&&) : bufId(-1) {}
+  void operator=(BufferIO&&) {}
 
 public:
   BufferIO(int abufId, const char *aname, const int truncatePercent) : bufId(abufId), name(aname) {
-		size = jsBufGetSize(bufId);
+    size = jsBufGetSize(bufId);
     if (truncatePercent == 0) {
       truncateCount = -1;
     } else {
@@ -33,9 +33,9 @@ public:
     }
   }
 
-	~BufferIO() {
-      // TODO: Release buffer?
-	}
+  ~BufferIO() {
+    // TODO: Release buffer?
+  }
 
   int read() {
     if (truncateCount >= 0 && readCount > truncateCount) {
