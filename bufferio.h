@@ -25,7 +25,7 @@ private:
 
 public:
   BufferIO(int abufId, const char *aname, const int truncatePercent) : bufId(abufId), name(aname) {
-	  size = jsBufGetSize(bufId);
+		size = jsBufGetSize(bufId);
     if (truncatePercent == 0) {
       truncateCount = -1;
     } else {
