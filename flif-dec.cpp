@@ -113,7 +113,7 @@ void flif_decode_FLIF2_inner_interpol(Images &images, const ColorRanges *, const
             for (Image& image : images) {
               if (image.palette == false) {
                for (uint32_t c = 0; c < image.cols(z); c++) {
-                 image.set(p,z,r,c, predict(image,z,p,r,c));    // normal method: use predict() for interpolation
+                 image.set(p,z,r,c, predict_interpol(image,z,p,r,c));    // normal method: use predict() for interpolation
                }
               } else {
                for (uint32_t c = 0; c < image.cols(z); c++) {
@@ -128,7 +128,7 @@ void flif_decode_FLIF2_inner_interpol(Images &images, const ColorRanges *, const
             for (Image& image : images) {
               if (image.palette == false) {
                for (uint32_t c = 1; c < image.cols(z); c += 2) {
-                image.set(p,z,r,c, predict(image,z,p,r,c));
+                image.set(p,z,r,c, predict_interpol(image,z,p,r,c));
                }
               } else {
                for (uint32_t c = 1; c < image.cols(z); c += 2) {

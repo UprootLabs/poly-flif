@@ -56,6 +56,30 @@ ColorVal predict_and_calcProps_scanlines(Properties &properties, const ColorRang
 void initPropRanges(Ranges &propRanges, const ColorRanges &ranges, int p);
 
 // Prediction used for interpolation. Does not have to be the same as the guess used for encoding/decoding.
+inline ColorVal predict_interpol(const Image &image, int z, int p, uint32_t r, uint32_t c)
+{
+    if (z%2 == 0) { // filling horizontal lines
+      ColorVal top = image(p,z,r-1,c);
+      ColorVal top3 = (r > 3) ? image(p,z,r-3,c) : top;
+      ColorVal top5 = (r > 5) ? image(p,z,r-5,c) : top3;
+      ColorVal bottom = (r+1 < image.rows(z) ? image(p,z,r+1,c) : top);
+      ColorVal bottom3 = ((r+3) < image.rows(z) ? image(p,z,r+3,c) : bottom);
+      ColorVal bottom5 = ((r+5) < image.rows(z) ? image(p,z,r+5,c) : bottom3);
+      ColorVal avg = (3*top + 3*bottom + 2*top3 + 2*bottom3 + top5 + bottom5)/12;
+      return avg;
+    } else { // filling vertical lines
+      ColorVal left = image(p,z,r,c-1);
+      ColorVal left3 = (c > 3) ? image(p,z,r,c-3) : left;
+      ColorVal left5 = (c > 5) ? image(p,z,r,c-5) : left3;
+      ColorVal right = (c+1 < image.cols(z) ? image(p,z,r,c+1) : left);
+      ColorVal right3 = ((c+3) < image.cols(z) ? image(p,z,r,c+3) : right);
+      ColorVal right5 = ((c+5) < image.cols(z) ? image(p,z,r,c+5) : right3);
+      ColorVal avg = (3*left + 3*right + 2*left3 + 2*right3 + left5 + right5)/12;
+      return avg;
+    }
+}
+
+// Prediction used for interpolation. Does not have to be the same as the guess used for encoding/decoding.
 inline ColorVal predict(const Image &image, int z, int p, uint32_t r, uint32_t c)
 {
     if (z%2 == 0) { // filling horizontal lines
