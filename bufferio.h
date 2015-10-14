@@ -94,6 +94,9 @@ public:
   void close() {
     // TODO: Close?
   }
+  void fseek(long offset, int where) {
+    throw std::runtime_error("Not implemented");
+  }
   const char* getName() {
     return name;
   }
