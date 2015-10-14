@@ -58,23 +58,38 @@ void initPropRanges(Ranges &propRanges, const ColorRanges &ranges, int p);
 // Prediction used for interpolation. Does not have to be the same as the guess used for encoding/decoding.
 inline ColorVal predict_interpol(const Image &image, int z, int p, uint32_t r, uint32_t c)
 {
+    bool hasBottom = r+1 < image.rows(z);
+    bool opt1 = (rand() % 2) == 0;
     if (z%2 == 0) { // filling horizontal lines
       ColorVal top = image(p,z,r-1,c);
-      ColorVal top3 = (r > 3) ? image(p,z,r-3,c) : top;
-      ColorVal top5 = (r > 5) ? image(p,z,r-5,c) : top3;
-      ColorVal bottom = (r+1 < image.rows(z) ? image(p,z,r+1,c) : top);
-      ColorVal bottom3 = ((r+3) < image.rows(z) ? image(p,z,r+3,c) : bottom);
-      ColorVal bottom5 = ((r+5) < image.rows(z) ? image(p,z,r+5,c) : bottom3);
-      ColorVal avg = (3*top + 3*bottom + 2*top3 + 2*bottom3 + top5 + bottom5)/12;
+      ColorVal topLeft = (c > 1) ? image(p,z,r-1,c - 1) : top;
+      ColorVal topRight = ((c+1) < image.cols(z)) ? image(p,z,r-1,c+1) : top;
+      ColorVal topLeft2 = (c > 2) ? image(p,z,r-1,c - 2) : top;
+      ColorVal topRight2 = ((c+2) < image.cols(z)) ? image(p,z,r-1,c+2) : top;
+      ColorVal bottom = (hasBottom ? image(p,z,r+1,c) : top);
+      ColorVal bottomLeft = (hasBottom && c > 1) ? image(p,z,r+1,c - 1) : bottom;
+      ColorVal bottomRight = (hasBottom && (c+1) < image.cols(z)) ? image(p,z,r+1,c+1) : bottom;
+      ColorVal bottomLeft2 = (hasBottom && c > 2) ? image(p,z,r+1,c - 2) : bottom;
+      ColorVal bottomRight2 = (hasBottom && (c+2) < image.cols(z)) ? image(p,z,r+1,c+2) : bottom;
+      ColorVal avg = opt1 ?
+         (17*(top + bottom) + 5*(topLeft + topRight + bottomLeft + bottomRight) + 3*(topLeft2 + topRight2) + 2*(bottomLeft2 + bottomRight2) )/64 :
+         (15*(top + bottom) + 6*(topLeft + topRight + bottomLeft + bottomRight) + 2*(topLeft2 + topRight2) + 3*(bottomLeft2 + bottomRight2) )/64;
       return avg;
     } else { // filling vertical lines
+      bool hasBottom2 = r+2 < image.rows(z);
       ColorVal left = image(p,z,r,c-1);
-      ColorVal left3 = (c > 3) ? image(p,z,r,c-3) : left;
-      ColorVal left5 = (c > 5) ? image(p,z,r,c-5) : left3;
+      ColorVal leftTop = ((r > 1) && c > 1) ? image(p,z,r-1,c - 1) : left;
+      ColorVal leftBottom = (hasBottom && c > 1) ? image(p,z,r+1,c - 1) : left;
+      ColorVal leftTop2 = ((r > 2) && c > 1) ? image(p,z,r-2,c - 1) : left;
+      ColorVal leftBottom2 = (hasBottom2 && c > 1) ? image(p,z,r+2,c - 1) : left;
       ColorVal right = (c+1 < image.cols(z) ? image(p,z,r,c+1) : left);
-      ColorVal right3 = ((c+3) < image.cols(z) ? image(p,z,r,c+3) : right);
-      ColorVal right5 = ((c+5) < image.cols(z) ? image(p,z,r,c+5) : right3);
-      ColorVal avg = (3*left + 3*right + 2*left3 + 2*right3 + left5 + right5)/12;
+      ColorVal rightTop = ((r > 1) && (c+1) < image.cols(z)) ? image(p,z,r-1,c+1) : right;
+      ColorVal rightBottom = (hasBottom && (c+1) < image.cols(z)) ? image(p,z,r+1,c+1) : right;
+      ColorVal rightTop2 = ((r > 2) && (c+1) < image.cols(z)) ? image(p,z,r-2,c+1) : right;
+      ColorVal rightBottom2 = (hasBottom2 && (c+1) < image.cols(z)) ? image(p,z,r+2,c+1) : right;
+      ColorVal avg = opt1 ?
+         (17*(left + right) + 5*(leftTop + rightTop + leftBottom + rightBottom) + 3*(leftTop2 + rightTop2) + 2*(leftBottom2 + rightBottom2))/64 :
+         (15*(left + right) + 6*(leftTop + rightTop + leftBottom + rightBottom) + 2*(leftTop2 + rightTop2) + 3*(leftBottom2 + rightBottom2))/64;
       return avg;
     }
 }
