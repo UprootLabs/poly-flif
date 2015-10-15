@@ -15,6 +15,16 @@ div.emscripten_border { border: 1px solid lightgrey; padding: 1em; margin: 1em a
 /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
 canvas.emscripten { border: 0px none; }
 
+/* Avoid interpolation in canvas, per GH-10 */
+canvas.emscripten { 
+  image-rendering: optimizeSpeed;             /* Older versions of FF          */
+  image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
+  image-rendering: -webkit-optimize-contrast; /* Safari                        */
+  image-rendering: -o-crisp-edges;            /* OS X & Windows Opera (12.02+) */
+  image-rendering: pixelated;                 /* Awesome future-browsers       */
+  -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
+}
+
 .spinner {
   height: 30px;
   width: 30px;
