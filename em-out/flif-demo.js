@@ -28,9 +28,11 @@ function setElementDimension(query, w, h) {
   e.style.height = ""+h+"px";
 }
 
+var VIEWER_PADDING_PIXELS = 150;
+
 function updateViewer(width, height) {
-  setElementDimension("#viewer", width, height + 100);
-  setElementDimension(".viewer-parent", width, height + 100);
+  setElementDimension("#viewer", width, height + VIEWER_PADDING_PIXELS);
+  setElementDimension(".viewer-parent", width, height + VIEWER_PADDING_PIXELS);
 
   // This shouldn't be required, but the right-wrapper expands in height for some reason
   setElementDimension("#viewer-right .wrapper", width, height);
@@ -46,8 +48,8 @@ function updateViewer(width, height) {
 function updateSplit() {
   var leftWidth = Math.floor(viewWidth * splitPosition);
   var rightWidth = viewWidth - leftWidth;
-  setElementDimension("#viewer-left", leftWidth, viewHeight + 100);
-  setElementDimension("#viewer-right", rightWidth, viewHeight + 100);
+  setElementDimension("#viewer-left", leftWidth, viewHeight + VIEWER_PADDING_PIXELS);
+  setElementDimension("#viewer-right", rightWidth, viewHeight + VIEWER_PADDING_PIXELS);
 }
 
 function setElementTop(query, t) {
@@ -270,12 +272,12 @@ function ensureDir(dirPath) {
 }
 
 function setRightInfo(title, truncSize, fullSize) {
-  var titleStr = '<p>'+title+'&nbsp;»</p>';
+  var titleStr = '<p class="title">'+title+'&nbsp;»</p>';
   setInfo('#right-info', titleStr, truncSize, fullSize);
 }
 
 function setLeftInfo(title, truncSize, fullSize) {
-  var titleStr = '<p>«&nbsp;'+title+'</p>';
+  var titleStr = '<p class="title">«&nbsp;'+title+'</p>';
   setInfo('#left-info', titleStr, truncSize, fullSize);
 }
 
@@ -289,7 +291,7 @@ function humanize(length) {
 }
 
 function setInfo(query, titleStr, truncSize, fullSize) {
-  var sizeStr = truncSize == fullSize ? humanize(fullSize) : humanize(truncSize) + "&nbsp;/&nbsp;" + humanize(fullSize);
+  var sizeStr = truncSize == fullSize ? humanize(fullSize) : humanize(truncSize) + "<br/><em>of&nbsp;" + humanize(fullSize) + "</em>";
   var sizeParaStr = '<p class="size">'+sizeStr+'</p>';
   var htmlStr = titleStr + sizeParaStr;
   document.querySelector(query).innerHTML = htmlStr;
