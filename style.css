@@ -11,7 +11,10 @@ body {
 
 .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
 div.emscripten { text-align: center; }      
-div.emscripten_border { border: 1px solid lightgrey; padding: 1em; margin: 1em auto;}
+div.emscripten_border {
+  border: 1px solid lightgrey; padding: 1em; margin: 1em auto;
+  border-radius: 4px;
+}
 /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
 canvas.emscripten { border: 0px none; }
 
@@ -104,7 +107,7 @@ canvas.emscripten {
 #aboutModal.visible { display: block }
 .closeButton {text-align: right; margin:0;}
 
-#controls .header {padding: 0em; font-weight: bold; font-size: 1.5em; border-right:1px dotted grey; padding-right:.5em;}
+#controls .header {padding: 0em; font-weight: bold; font-size: 1.5em; border-right:1px dotted #bbb; padding-right:.5em;}
 #controls .header input[type=button] { background: #ddd; border:none; border-radius:.3em;}
 #controls .header a {color: #76b45a; text-decoration: none; border-bottom:1px dotted #76b45a}
 #controls .header .subdued {color: #999;}
@@ -167,10 +170,17 @@ canvas.emscripten {
   margin: 0;
 }
 
+#left-info p.title, #right-info p.title {
+  font-size:1.1em;
+  font-weight: bold;
+  color: #222;
+}
+
 #left-info p.size, #right-info p.size {
   font-size:0.8em;
-  font-style: italic;
   color: #222;
+  margin-top: .5em;
+  line-height: 1.4em;
 }
 
 #left-info {
@@ -185,7 +195,7 @@ canvas.emscripten {
 
 .inputGroup {
   display: inline-block;
-  border-right:1px dotted grey;
+  border-right:1px dotted #bbb;
   padding-left:1em;
   padding-right:1em;
 }
