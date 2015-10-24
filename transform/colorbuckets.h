@@ -263,7 +263,7 @@ public:
         const ColorBucket& b = bucket(p,pp);
         minv=b.min;
         maxv=b.max;
-//        if (b.min > b.max) { printf("UGH!! HOW? Shouldn't happen!\n"); assert(false); minv=0; maxv=0; v=0; }
+        if (b.min > b.max) { e_printf("Corruption detected!\n"); exit(4); } // printf("UGH!! HOW? Shouldn't happen!\n"); assert(false); minv=0; maxv=0; v=0; }
         v=b.snapColor(v);
     }
     void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const {
@@ -285,6 +285,7 @@ protected:
     bool really_used;
 
     ~TransformCB() {if (!really_used) delete cb;}
+    bool undo_redo_during_decode() { return false; }
 
     const ColorRanges* meta(Images&, const ColorRanges *srcRanges) {
 //        cb->print();
@@ -320,7 +321,7 @@ protected:
     bool init(const ColorRanges *srcRanges) {
         really_used = false;
         if(srcRanges->numPlanes() < 3) return false;
-        if (srcRanges->min(1) == 0 && srcRanges->max(1) == 0 && srcRanges->min(2) == 0 && srcRanges->max(2) == 0) return false; // probably palette image
+        if (srcRanges->min(0) == 0 && srcRanges->max(0) == 0 && srcRanges->min(2) == 0 && srcRanges->max(2) == 0) return false; // probably palette image
         if (srcRanges->min(0) == srcRanges->max(0) &&
             srcRanges->min(1) == srcRanges->max(1) &&
             srcRanges->min(2) == srcRanges->max(2)) return false; // only alpha plane contains information
@@ -399,7 +400,7 @@ protected:
 //        b.print();
         return b;
     }
-    void load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
+    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
 //        printf("Loading Color Buckets\n");
         SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 24> coder(rac);
         prevPlanes pixelL, pixelU;
@@ -421,6 +422,7 @@ protected:
                 pixelL[0] += CB0b; pixelU[0] += CB0b; 
         }
         if (srcRanges->numPlanes() > 3) cb->bucket3 = load_bucket(coder, srcRanges, 3, pixelL, pixelU);
+        return true;
     }
 
 #ifdef HAS_ENCODER
@@ -503,18 +505,18 @@ protected:
         }
     }
 
-    bool process(const ColorRanges *, const Images &images) {
+    bool process(const ColorRanges *srcRanges, const Images &images) {
             std::vector<ColorVal> pixel(images[0].numPlanes());
             // fill buckets
             for (const Image& image : images)
             for (uint32_t r=0; r<image.rows(); r++) {
                 for (uint32_t c=0; c<image.cols(); c++) {
-//                  pixel.clear();
-                  for (int p=0; p<image.numPlanes(); p++) {
+                  int p;
+                  for (p=0; p<image.numPlanes(); p++) {
                     ColorVal v = image(p,r,c);
-//                    pixel.push_back(v);
                     pixel[p] = v;
                   }
+                  if (p>3 && pixel[3]==0) { cb->findBucket(3, pixel).addColor(0,max_per_colorbucket[3]); continue;}
                   cb->addColor(pixel);
                 }
             }
@@ -522,38 +524,25 @@ protected:
             cb->bucket0.simplify_lossless();
             cb->bucket3.simplify_lossless();
 
-//                  if (totaldiscretecolors > 20000 && totalcontinuousbuckets > 2000) {
-//                        printf("Too many colors, not using color buckets.\n");
-//                        return false;
-//                  }
-
 
         // TODO: IMPROVE THESE HEURISTICS!
         // TAKE IMAGE SIZE INTO ACCOUNT!
         // CONSIDER RELATIVE AREA OF BUCKETS / BOUNDS!
 
 //            printf("Filled color buckets with %i discrete colors + %i continous buckets\n",totaldiscretecolors,totalcontinuousbuckets);
-            bool doing_it=false;
-            if (totaldiscretecolors < 10000 && totalcontinuousbuckets < 500) doing_it=true;
+
+            int64_t total_pixels = (int64_t) images.size() * images[0].rows() * images[0].cols();
+            v_printf(7,", [D=%i,C=%i,P=%i]",totaldiscretecolors,totalcontinuousbuckets,(int) (total_pixels/100));
+            if (totaldiscretecolors < total_pixels/100 && totalcontinuousbuckets < total_pixels/50) return true;
 
             // simplify buckets
-            if (!doing_it) {
-              for (auto& b : cb->bucket1) b.simplify(80);
-              for (auto& bv : cb->bucket2) for (auto& b : bv) b.simplify(60);
-
-//              printf("Filled color buckets with %i discrete colors + %i continous buckets\n",totaldiscretecolors,totalcontinuousbuckets);
-              if (totaldiscretecolors > 1000) {
-//                printf("Too many colors, simplifying...\n");
-                for (auto& b : cb->bucket1) b.simplify(50);
-                for (auto& bv : cb->bucket2) for (auto& b : bv) b.simplify(20);
-//                printf("Filled color buckets with %i discrete colors + %i continous buckets\n",totaldiscretecolors,totalcontinuousbuckets);
-                if (totaldiscretecolors > 2000 || totalcontinuousbuckets > 2000) {
-//                  printf("Still too many colors, not using auto-indexing.\n");
-                  return false;
-                }
-              }
+            for (int factor = 95; factor >= 35; factor -= 10) {
+                for (auto& b : cb->bucket1) b.simplify(factor);
+                for (auto& bv : cb->bucket2) for (auto& b : bv) b.simplify(factor-20);
+                v_printf(8,"->[D=%i,C=%i]",totaldiscretecolors,totalcontinuousbuckets);
+                if (totaldiscretecolors < total_pixels/200 && totalcontinuousbuckets < total_pixels/100) return true;
             }
-            return true;
+            return false;
     }
 #endif
 };

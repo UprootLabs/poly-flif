@@ -35,10 +35,10 @@ void showImageQuick(Image& firstImage) {
 
   for (int i = 0; i < iHeight; i++) {
     for (int j = 0; j < iWidth; j++) {
-      ColorVal r = firstImage(0, i, j);
-      ColorVal g = firstImage(1, i, j);
-      ColorVal b = firstImage(2, i, j);
-      ColorVal a = numPlanes > 3 ? firstImage(3, i, j) : 255;
+      ColorVal r = firstImage(0, i, j) & 0xFF;
+      ColorVal g = firstImage(1, i, j) & 0xFF;
+      ColorVal b = firstImage(2, i, j) & 0xFF;
+      ColorVal a = numPlanes > 3 ? (firstImage(3, i, j) & 0xFF) : 255;
       putPixel(j*4, r, g, b, a);
     }
     showRow(i);

@@ -12,8 +12,8 @@
 
 typedef int32_t ColorVal;  // used in computations
 
-typedef int16_t ColorVal_intern_8;   // used in representations
-typedef int32_t ColorVal_intern_16;  // making them signed and a large enough for big palettes and negative alpha values for frame combination
+typedef uint8_t ColorVal_intern_8;
+typedef uint16_t ColorVal_intern_16;
 typedef int32_t ColorVal_intern_32;
 
 // It's a part of C++14. Following impl was taken from GotW#102
@@ -43,8 +43,42 @@ public:
 };
 
 class Image {
-    Image(const Image& other) = delete;
-    Image& operator=(const Image& other) = delete;
+    Image(const Image& other)
+    {
+      // reuse implementation from assignment operator
+      operator=(other);
+    }
+
+    template<class T>
+    void clone_unique_ptr(std::unique_ptr<T>& dest, const std::unique_ptr<T>& source)
+    {
+      dest.reset(source.get() ? new T(*source) : 0);
+    }
+    Image& operator=(const Image& other)
+    {
+      clone_unique_ptr(plane_8_1, other.plane_8_1);
+      clone_unique_ptr(plane_8_2, other.plane_8_2);
+      clone_unique_ptr(plane_16_1, other.plane_16_1);
+      clone_unique_ptr(plane_16_2, other.plane_16_2);
+      clone_unique_ptr(plane_32_1, other.plane_32_1);
+      clone_unique_ptr(plane_32_2, other.plane_32_2);
+      clone_unique_ptr(plane_frame_lookbacks, other.plane_frame_lookbacks);
+
+      width = other.width;
+      height = other.height;
+      minval = other.minval;
+      maxval = other.maxval;
+      num = other.num;
+#ifdef SUPPORT_HDR
+      depth = other.depth;
+#endif
+      palette = other.palette;
+      col_begin = other.col_begin;
+      col_end = other.col_end;
+      seen_before = other.seen_before;
+
+      return *this;
+    }
 
     template <typename CV>
     using PlanePtr = std::unique_ptr<Plane<CV>>;
@@ -161,6 +195,13 @@ public:
 #endif
       }
       if (p>4) plane_frame_lookbacks = make_unique<Plane<ColorVal_intern_8>>(width, height); // A
+    }
+
+    // Copy constructor is private to avoid mistakes.
+    // This function can be used if copies are necessary.
+    Image clone()
+    {
+      return *this;
     }
 
     void clear() {
@@ -366,13 +407,15 @@ public:
           crc32k_transform(crc,height & 255);
           crc32k_transform(crc,height / 256);
           for (int p=0; p<num; p++) {
-//            for (ColorVal d : p.data) {
+//            printf("\nPlane %i\n",p);
             for (uint32_t r=0; r<height; r++) {
                for (uint32_t c=0; c<width; c++) {
                  ColorVal d = operator()(p,r,c);
+//                 printf("%c",' ' + (d & 63));
                  crc32k_transform(crc,d & 255);
                  crc32k_transform(crc,d / 256);
-              }
+               }
+//               printf("\n");
             }
           }
 //          printf("Computed checksum: %X\n", (~crc & 0xFFFFFFFF));

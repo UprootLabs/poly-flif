@@ -37,6 +37,8 @@ class TransformBounds : public Transform<IO> {
 protected:
     std::vector<std::pair<ColorVal, ColorVal> > bounds;
 
+    bool undo_redo_during_decode() { return false; }
+
     const ColorRanges *meta(Images&, const ColorRanges *srcRanges) {
         if (srcRanges->isStatic()) {
             return new StaticColorRanges(bounds);
@@ -45,7 +47,7 @@ protected:
         }
     }
 
-    void load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
+    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
         SimpleSymbolCoder<SimpleBitChance, RacIn<IO>, 24> coder(rac);
         bounds.clear();
         for (int p=0; p<srcRanges->numPlanes(); p++) {
@@ -53,9 +55,13 @@ protected:
 //            ColorVal max = coder.read_int(0, srcRanges->max(p) - min) + min;
             ColorVal min = coder.read_int(srcRanges->min(p), srcRanges->max(p));
             ColorVal max = coder.read_int(min, srcRanges->max(p));
+            if (min > max) return false;
+            if (min < srcRanges->min(p)) return false;
+            if (max > srcRanges->max(p)) return false;
             bounds.push_back(std::make_pair(min,max));
             v_printf(5,"[%i:%i..%i]",p,min,max);
         }
+        return true;
     }
 
 #ifdef HAS_ENCODER
@@ -75,12 +81,14 @@ protected:
     bool process(const ColorRanges *srcRanges, const Images &images) {
         bounds.clear();
         bool trivialbounds=true;
-        for (int p=0; p<srcRanges->numPlanes(); p++) {
+        int nump=srcRanges->numPlanes();
+        for (int p=0; p<nump; p++) {
             ColorVal min = srcRanges->max(p);
             ColorVal max = srcRanges->min(p);
             for (const Image& image : images)
             for (uint32_t r=0; r<image.rows(); r++) {
                 for (uint32_t c=0; c<image.cols(); c++) {
+                    if (nump>3 && p<3 && image(3,r,c)==0) continue; // don't take fully transparent pixels into account
                     ColorVal v = image(p,r,c);
                     if (v < min) min = v;
                     if (v > max) max = v;
@@ -88,6 +96,7 @@ protected:
                     assert(v >= srcRanges->min(p));
                 }
             }
+            if (min > max) min = max = (min+max)/2; // this can happen if the image is fully transparent
             bounds.push_back(std::make_pair(min,max));
             if (min > srcRanges->min(p)) trivialbounds=false;
             if (max < srcRanges->max(p)) trivialbounds=false;

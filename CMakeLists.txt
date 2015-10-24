@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(flif)
 
+option(FLIF_SHARED "Build shared lib" OFF)
+
 find_package(PNG REQUIRED)
 
 set(IMAGE_SOURCES
@@ -9,6 +11,7 @@ set(IMAGE_SOURCES
     image/image-pam.cpp
     image/image-png.cpp
     image/image-pnm.cpp
+    image/image-rggb.cpp
     image/image.cpp
 )
 
@@ -19,6 +22,16 @@ set(MANIAC_SOURCES
 set(TRANSFORM_SOURCES
     transform/factory.cpp
 )
+
+if(FLIF_SHARED)
+    set(INTERFACE_SOURCES
+        flif-interface.cpp
+    )
+else()
+    set(EXE_SOURCES
+        flif.cpp
+    )
+endif()
 
 # Use cmake -DCMAKE_CXX_FLAGS=-pg to support other build types.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
@@ -34,14 +47,19 @@ set(PROJECT_SOURCES
     ${IMAGE_SOURCES}
     ${MANIAC_SOURCES}
     ${TRANSFORM_SOURCES}
+    ${INTERFACE_SOURCES}
     io.cpp
     common.cpp
     flif-dec.cpp
     flif-enc.cpp
-    flif.cpp
+    ${EXE_SOURCES}
 )
 
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
+if(FLIF_SHARED)
+    add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCES})
+else()
+    add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
+endif()
 
 target_link_libraries(${PROJECT_NAME}
     ${PNG_LIBRARY}
