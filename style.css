@@ -19,7 +19,8 @@ div.emscripten_border {
 canvas.emscripten { border: 0px none; }
 
 /* Avoid interpolation in canvas, per GH-10 */
-canvas.emscripten { 
+/* Also avoid it for image, per GH-10 */
+canvas.emscripten, #viewer-right img { 
   image-rendering: optimizeSpeed;             /* Older versions of FF          */
   image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
   image-rendering: -webkit-optimize-contrast; /* Safari                        */
