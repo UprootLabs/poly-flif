@@ -72,11 +72,11 @@ var imgInfos = [
      },
   },
   { name: 'tea',
-    fileSizes: { flif: 483335
+    fileSizes: { flif: 483334
      },
   },
   { name: 'train',
-    fileSizes: { flif: 1246827
+    fileSizes: { flif: 1246828
      },
   },
   { name: 'watch_by8',
