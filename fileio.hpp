@@ -3,15 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <sys/stat.h>
-
 class FileIO
 {
 private:
     FILE *file;
     const char *name;
-    int truncateCount;
-    int readCount = 0;
 	
 	// prevent copy
 	FileIO(const FileIO&) {}
@@ -21,17 +17,8 @@ private:
 	void operator=(FileIO&&) {}
 public:
     const int EOS = -1;
-    FileIO(FILE* fil, const char *aname, const int truncatePercent) : file(fil), name(aname) {
-      if (truncatePercent == 0) {
-        truncateCount = -1;
-      } else {
-	struct stat buf;
-	fstat(fileno(fil), &buf);
-	int size = buf.st_size;
-        truncateCount = size * (truncatePercent/100.0);
-      }
-    }
 
+    FileIO(FILE* fil, const char *aname) : file(fil), name(aname) { }
     ~FileIO() {
         if (file) fclose(file);
     }
@@ -39,11 +26,7 @@ public:
         fflush(file);
     }
     bool isEOF() {
-      if (truncateCount >= 0 && readCount > truncateCount) {
-        return true;
-      } else {
-        return feof(file);
-      }
+      return feof(file);
     }
     int ftell() {
       return ::ftell(file);
