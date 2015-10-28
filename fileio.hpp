@@ -20,6 +20,7 @@ private:
 	FileIO(FileIO&&) {}
 	void operator=(FileIO&&) {}
 public:
+    const int EOS = -1;
     FileIO(FILE* fil, const char *aname, const int truncatePercent) : file(fil), name(aname) {
       if (truncatePercent == 0) {
         truncateCount = -1;
@@ -30,6 +31,7 @@ public:
         truncateCount = size * (truncatePercent/100.0);
       }
     }
+
     ~FileIO() {
         if (file) fclose(file);
     }
@@ -76,6 +78,8 @@ private:
     size_t data_array_size;
     size_t seek_pos;
 public:
+    const int EOS = -1;
+
     BlobReader(const uint8_t* _data, size_t _data_array_size)
     : data(_data)
     , data_array_size(_data_array_size)
@@ -91,7 +95,7 @@ public:
     }
     int getc() {
         if(seek_pos >= data_array_size)
-            return EOF;
+            return EOS;
         return data[seek_pos++];
     }
     char * gets(char *buf, int n) {
@@ -108,7 +112,7 @@ public:
     }
     int fputc(int c) {
       // cannot write on const memory
-      return EOF;
+      return EOS;
     }
     void fseek(long offset, int where) {
         switch(where) {
@@ -165,6 +169,8 @@ private:
         std::swap(data_array_size, new_size);
     }
 public:
+    const int EOS = -1;
+
     BlobIO()
     : data(0)
     , data_array_size(0)
@@ -200,7 +206,7 @@ public:
     }
     int getc() {
         if(seek_pos >= bytes_used)
-            return EOF;
+            return EOS;
         return data[seek_pos++];
     }
     char * gets(char *buf, int n) {

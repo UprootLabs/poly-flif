@@ -24,6 +24,8 @@ private:
   void operator=(BufferIO&&) {}
 
 public:
+  const int EOS = 1;
+
   BufferIO(int abufId, const char *aname, const int truncatePercent) : bufId(abufId), name(aname) {
     size = jsBufGetSize(bufId);
     if (truncatePercent == 0) {
@@ -37,16 +39,6 @@ public:
     // TODO: Release buffer?
   }
 
-  int read() {
-    if (truncateCount >= 0 && readCount > truncateCount) {
-      return 0;
-    } else {
-      int r = jsBufGetC(bufId, readCount);
-      if (r < 0) return 0;
-      readCount++;
-      return r;
-    }
-  }
   void write(int byte) {
       throw std::runtime_error("Not implemented");
   }
@@ -65,7 +57,7 @@ public:
   }
   int getc() {
     if (isEOF()) {
-      return -1;
+      return EOS;
     } else {
       int c = jsBufGetC(bufId, readCount);
       readCount++;
