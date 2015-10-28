@@ -22,13 +22,13 @@ EM_SCRIPT_OPTIONS+=--memory-init-file 0
 
 CXXFLAGS += ${EM_SCRIPT_OPTIONS}
 
-em-out/flif.html: maniac/*.h maniac/*.cpp image/*.h image/*.cpp transform/*.h transform/*.cpp flif-em.cpp flif-enc.cpp flif-dec.cpp common.cpp flif-enc.h flif-dec.h common.h flif_config.h fileio.h bufferio.h io.h io.cpp Makefile flif-library.js
+em-out/flif.html: maniac/*.hpp maniac/*.cpp image/*.hpp image/*.cpp transform/*.hpp transform/*.cpp flif-em.cpp flif-enc.cpp flif-dec.cpp common.cpp flif-enc.hpp flif-dec.hpp common.hpp flif_config.h fileio.hpp bufferio.h io.hpp io.cpp Makefile flif-library.js
 	${CXX} -std=gnu++11 $(CXXFLAGS) $(LDFLAGS) -DNDEBUG -Oz -g0 -Wall maniac/chance.cpp image/color_range.cpp transform/factory.cpp flif-em.cpp common.cpp flif-dec.cpp io.cpp -o em-out/flif.html
 
 # for running interface-test
 export LD_LIBRARY_PATH=$(shell pwd):$LD_LIBRARY_PATH
 
-FILES_H := maniac/*.h maniac/*.cpp image/*.h transform/*.h flif-enc.h flif-dec.h common.h flif_config.h fileio.h io.h io.cpp config.h
+FILES_H := maniac/*.hpp maniac/*.cpp image/*.hpp transform/*.hpp flif-enc.hpp flif-dec.hpp common.hpp flif_config.h fileio.hpp io.hpp io.cpp config.h
 FILES_CPP := maniac/chance.cpp image/crc32k.cpp image/image.cpp image/image-png.cpp image/image-pnm.cpp image/image-pam.cpp image/image-rggb.cpp image/color_range.cpp transform/factory.cpp common.cpp flif-enc.cpp flif-dec.cpp io.cpp
 
 flif: $(FILES_H) $(FILES_CPP) flif.cpp
@@ -39,6 +39,9 @@ flif.prof: $(FILES_H) $(FILES_CPP) flif.cpp
 
 flif.dbg: $(FILES_H) $(FILES_CPP) flif.cpp
 	$(CXX) -std=gnu++11 $(CXXFLAGS) -O0 -ggdb3 -Wall $(FILES_CPP) flif.cpp -o flif.dbg $(LDFLAGS)
+
+flif.asan: $(FILES_H) $(FILES_CPP) flif.cpp
+	$(CXX) -std=gnu++11 $(CXXFLAGS) -O3 -fsanitize=address,undefined -fno-omit-frame-pointer -g3 -Wall $(FILES_CPP) flif.cpp -o flif.asan $(LDFLAGS)
 
 libflif.so: $(FILES_H) $(FILES_CPP) flif.h flif-interface-private.h flif-interface.cpp
 	$(CXX) -std=gnu++11 $(CXXFLAGS) -DNDEBUG -O3 -g0 -Wall -shared -fPIC $(FILES_CPP) flif-interface.cpp -o libflif.so $(LDFLAGS)
@@ -54,6 +57,12 @@ all: flif libflif.so viewflif
 test-interface: libflifd.so flif.h tools/test.c
 	gcc -O0 -ggdb3 -Wall -I. tools/test.c -o test-interface -L. -lflifd
 
+install: all
+	install -s -m 755 flif viewflif $(PREFIX)/bin
+	install -s -m 755 libflif.so $(PREFIX)/lib
+
+clean:
+	rm -f flif libflif*.so viewflif
 
 test: flif test-interface
 	mkdir -p testFiles

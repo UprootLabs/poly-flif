@@ -5,9 +5,9 @@
 #include <stdint.h>
 #include <valarray>
 #include <memory>
-#include "crc32k.h"
+#include "crc32k.hpp"
 
-#include "../io.h"
+#include "../io.hpp"
 #include "../config.h"
 
 typedef int32_t ColorVal;  // used in computations
@@ -198,7 +198,7 @@ public:
       if (p>4) plane_frame_lookbacks = make_unique<Plane<ColorVal_intern_8>>(width, height); // A
       }
       catch (std::bad_alloc& ba) {
-        e_printf("Error: could not allocate enough memory.\n");
+        e_printf("Error: could not allocate enough memory for image data.\n");
         return false;
       }
       return true;
@@ -278,7 +278,7 @@ public:
               }
               for (uint32_t r=0; r<height; r++) {
                for (uint32_t c=0; c<width; c++) {
-                 set(3,r,c, 1); //(1<<depth)-1);
+                 set(3,r,c, 255); //(1<<depth)-1);
                }
               }
             case 4:

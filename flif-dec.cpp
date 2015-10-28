@@ -1,16 +1,16 @@
 #include <string>
 #include <string.h>
 
-#include "maniac/rac.h"
-#include "maniac/compound.h"
-#include "maniac/util.h"
+#include "maniac/rac.hpp"
+#include "maniac/compound.hpp"
+#include "maniac/util.hpp"
 
-#include "image/color_range.h"
-#include "transform/factory.h"
+#include "image/color_range.hpp"
+#include "transform/factory.hpp"
 
 #include "flif_config.h"
 
-#include "common.h"
+#include "common.hpp"
 #include "bufferio.h"
 
 static int truncatedSize = -1;
@@ -321,7 +321,8 @@ template<typename IO, typename Rac, typename Coder> void flif_decode_FLIF2_pass(
 
 template<typename BitChance, typename Rac> bool flif_decode_tree(Rac &rac, const ColorRanges *ranges, std::vector<Tree> &forest, const int encoding)
 {
-    for (int p = 0; p < ranges->numPlanes(); p++) {
+    try {
+      for (int p = 0; p < ranges->numPlanes(); p++) {
         Ranges propRanges;
         if (encoding==1) initPropRanges_scanlines(propRanges, *ranges, p);
         else initPropRanges(propRanges, *ranges, p);
@@ -329,7 +330,11 @@ template<typename BitChance, typename Rac> bool flif_decode_tree(Rac &rac, const
         if (ranges->min(p)<ranges->max(p))
         if (!metacoder.read_tree(forest[p])) {return false;}
 //        forest[p].print(stdout);
-    }
+      }
+    } catch (std::bad_alloc& ba) {
+        e_printf("Error: could not allocate enough memory for MANIAC trees.\n");
+        return false;
+      }
     return true;
 }
 
@@ -442,12 +447,14 @@ bool flif_decode(IO& io, Images &images, int quality, int scale, uint32_t (*call
         }
         if (tcount++ > 0) v_printf(4,", ");
         v_printf(4,"%s", desc.c_str());
+        if (desc == "FRA" && images.size()<2) return false;
         if (desc == "FRS") {
+                if (images.size()<2) return false;
                 int unique_frames=images.size()-1; // not considering first frame
                 for (Image& i : images) if (i.seen_before >= 0) unique_frames--;
                 if (unique_frames < 1) {return false;}
                 trans->configure(unique_frames*images[0].rows()); trans->configure(images[0].cols()); }
-        if (desc == "DUP") { trans->configure(images.size()); }
+        if (desc == "DUP") { if (images.size()<2) return false; else trans->configure(images.size()); }
         if (!trans->load(rangesList.back(), rac)) return false;
         rangesList.push_back(trans->meta(images, rangesList.back()));
         transforms.push_back(trans);
@@ -523,11 +530,7 @@ bool flif_decode(IO& io, Images &images, int quality, int scale, uint32_t (*call
 #endif
                 break;
     }
-    if (numFrames==1)
-      v_printf(2,"\rDecoding done, %li bytes for %ux%u pixels (%.4fbpp)   \n",rac.ftell(), images[0].cols()/scale, images[0].rows()/scale, 8.0*rac.ftell()/images[0].rows()/images[0].cols()/scale/scale);
-    else
-      v_printf(2,"\rDecoding done, %li bytes for %i frames of %ux%u pixels (%.4fbpp)   \n",rac.ftell(), numFrames, images[0].cols()/scale, images[0].rows()/scale, 8.0*rac.ftell()/numFrames/images[0].rows()/images[0].cols()/scale/scale);
-
+ 
 
     if (quality==100 && scale==1) {
       uint32_t checksum = images[0].checksum();
@@ -542,7 +545,13 @@ bool flif_decode(IO& io, Images &images, int quality, int scale, uint32_t (*call
       v_printf(2,"Not checking checksum, lossy partial decoding was chosen.\n");
     }
 
-    for (int i=transforms.size()-1; i>=0; i--) {
+   if (numFrames==1)
+      v_printf(2,"\rDecoding done, %li bytes for %ux%u pixels (%.4fbpp)   \n",rac.ftell(), images[0].cols()/scale, images[0].rows()/scale, 8.0*rac.ftell()/images[0].rows()/images[0].cols()/scale/scale);
+    else
+      v_printf(2,"\rDecoding done, %li bytes for %i frames of %ux%u pixels (%.4fbpp)   \n",rac.ftell(), numFrames, images[0].cols()/scale, images[0].rows()/scale, 8.0*rac.ftell()/numFrames/images[0].rows()/images[0].cols()/scale/scale);
+
+
+    for (int i=(int)transforms.size()-1; i>=0; i--) {
         transforms[i]->invData(images);
         delete transforms[i];
     }

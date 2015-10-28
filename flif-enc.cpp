@@ -3,17 +3,17 @@
 #include <string>
 #include <string.h>
 
-#include "maniac/rac.h"
-#include "maniac/compound.h"
-#include "maniac/util.h"
+#include "maniac/rac.hpp"
+#include "maniac/compound.hpp"
+#include "maniac/util.hpp"
 
 #include "flif_config.h"
-#include "image/color_range.h"
-#include "transform/factory.h"
+#include "image/color_range.hpp"
+#include "transform/factory.hpp"
 
 
-#include "common.h"
-#include "fileio.h"
+#include "common.hpp"
+#include "fileio.hpp"
 
 using namespace maniac::util;
 
@@ -440,18 +440,21 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 #endif
            break;
     }
-    if (numFrames==1)
-      v_printf(2,"\rEncoding done, %li bytes for %ux%u pixels (%.4fbpp)   \n",io.ftell(), images[0].cols(), images[0].rows(), 8.0*io.ftell()/images[0].rows()/images[0].cols());
-    else
-      v_printf(2,"\rEncoding done, %li bytes for %i frames of %ux%u pixels (%.4fbpp)   \n",io.ftell(), numFrames, images[0].cols(), images[0].rows(), 8.0*io.ftell()/numFrames/images[0].rows()/images[0].cols());
 
     //v_printf(2,"Writing checksum: %X\n", checksum);
     metaCoder.write_int(0, 0xFFFF, checksum / 0x10000);
     metaCoder.write_int(0, 0xFFFF, checksum & 0xFFFF);
     rac.flush();
+    io.flush();
+
+    if (numFrames==1)
+      v_printf(2,"\rEncoding done, %li bytes for %ux%u pixels (%.4fbpp)   \n",io.ftell(), images[0].cols(), images[0].rows(), 8.0*io.ftell()/images[0].rows()/images[0].cols());
+    else
+      v_printf(2,"\rEncoding done, %li bytes for %i frames of %ux%u pixels (%.4fbpp)   \n",io.ftell(), numFrames, images[0].cols(), images[0].rows(), 8.0*io.ftell()/numFrames/images[0].rows()/images[0].cols());
+
 //    images[0].save("debug.pam");
 
-    for (int i=transforms.size()-1; i>=0; i--) {
+    for (int i=(int)transforms.size()-1; i>=0; i--) {
         delete transforms[i];
     }
     transforms.clear();

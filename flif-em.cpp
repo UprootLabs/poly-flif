@@ -1,6 +1,6 @@
 #include "flif_config.h"
 
-#include "flif-dec.h"
+#include "flif-dec.hpp"
 
 #include "bufferio.h"
 
