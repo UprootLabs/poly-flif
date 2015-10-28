@@ -24,7 +24,7 @@ private:
   void operator=(BufferIO&&) {}
 
 public:
-  const int EOS = 1;
+  const int EOS = -1;
 
   BufferIO(int abufId, const char *aname, const int truncatePercent) : bufId(abufId), name(aname) {
     size = jsBufGetSize(bufId);
