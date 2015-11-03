@@ -233,27 +233,20 @@ void flif_encode_FLIF2_interpol_zero_alpha(Images &images, const ColorRanges *, 
 //    v_printf(2,"\n");
 }
 
-void flif_encode_scanlines_interpol_zero_alpha(Images &images, const ColorRanges *ranges)
-{
-
-    ColorVal min,max;
+void flif_encode_scanlines_interpol_zero_alpha(Images &images, const ColorRanges *ranges){
     int nump = images[0].numPlanes();
     if (nump > 3)
     for (Image& image : images)
     for (int p = 0; p < 3; p++) {
-        Properties properties((nump>3?NB_PROPERTIES_scanlinesA[p]:NB_PROPERTIES_scanlines[p]));
 //        if (ranges->min(p) >= ranges->max(p)) continue;  // nope, gives problem with fully A=0 image
-//          v_printf(2,"[%i] interpol_zero_alpha ",p);
-//        fflush(stdout);
         for (uint32_t r = 0; r < image.rows(); r++) {
             for (uint32_t c = 0; c < image.cols(); c++) {
                 if (image(3,r,c) == 0) {
-                    image.set(p,r,c, predict_and_calcProps_scanlines(properties,ranges,image,p,r,c,min,max));
+                    image.set(p,r,c, predict(image,p,r,c));
                 }
             }
         }
     }
-//    v_printf(2,"\n");
 }
 
 
@@ -316,7 +309,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     if (numFrames>1) {
         metaCoder.write_int(0, 100, 0); // repeats (0=infinite)
         for (int i=0; i<numFrames; i++) {
-           metaCoder.write_int(0, 60000, frame_delay); // time in ms between frames
+           metaCoder.write_int(0, 60000, images[i].frame_delay); // time in ms between frames
         }
     }
 //    v_printf(2,"Header: %li bytes.\n", ftell(f));
@@ -466,7 +459,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 }
 
 
-template bool flif_encode(FileIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int frame_delay, int palette_size, int lookback, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD);
-template bool flif_encode(BlobIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int frame_delay, int palette_size, int lookback, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD);
+template bool flif_encode(FileIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int frame_delay, int palette_size, int lookback, int divisor, int min_size, int split_threshold);
+template bool flif_encode(BlobIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int frame_delay, int palette_size, int lookback, int divisor, int min_size, int split_threshold);
 
 #endif

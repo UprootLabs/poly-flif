@@ -35,11 +35,7 @@
 
 #include "flif_config.h"
 
-#ifdef _MSC_VER
-#include "getopt/getopt.h"
-#else
 #include <getopt.h>
-#endif
 
 #include <stdarg.h>
 
@@ -125,11 +121,14 @@ bool file_is_flif(const char * filename){
         return result;
 }
 
+
+
+
 void show_banner() {
-    v_printf(3,"  _____  __  (__) _____");
-    v_printf(3,"\n (___  ||  | |  ||  ___)   ");v_printf(2,"FLIF 0.1.1 [26 October 2015]");
-    v_printf(3,"\n  (__  ||  |_|__||  __)    Free Lossless Image Format");
-    v_printf(3,"\n    (__||______) |__)    ");v_printf(2,"  (c) 2010-2015 J.Sneyers & P.Wuille, GNU GPL v3+\n");
+      v_printf(3," ______ __  (())______");
+    v_printf(3,"\n \\___  |  | |  |  ___/   ");v_printf(2,"FLIF 0.1.2 [28 October 2015]");
+    v_printf(3,"\n  \\__  |  |_|__|  __/    Free Lossless Image Format");
+    v_printf(3,"\n    \\__|_______|__/    ");v_printf(2,"  (c) 2010-2015 J.Sneyers & P.Wuille, GNU GPL v3+\n");
     v_printf(3,"\n");
 }
 
@@ -223,6 +222,7 @@ bool encode_flif(int argc, char **argv, Images &images, int palette_size, int ac
 
 bool handle_encode(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD) {
     if (!encode_load_input_images(argc,argv,images)) return false;
+    for (Image& i : images) i.frame_delay = frame_delay;
     argv += (argc-1);
     argc = 1;
     return encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold);

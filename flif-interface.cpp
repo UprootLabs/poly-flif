@@ -107,10 +107,12 @@ size_t FLIF_DECODER::num_images() {
 FLIF_IMAGE* FLIF_DECODER::get_image(size_t index) {
     if(index >= images.size())
         return 0;
-    FLIF_IMAGE *i = new FLIF_IMAGE();
-    i->image = images[index].clone();
-    return i;
-
+    if(index >= requested_images.size()) requested_images.resize(images.size());
+    if (!requested_images[index].get()) requested_images[index].reset( new FLIF_IMAGE());
+    if (images[index].rows()) {
+        requested_images[index]->image = std::move(images[index]); // moves and invalidates images[index]
+    }
+    return requested_images[index].get();
 }
 
 //=============================================================================
@@ -195,7 +197,11 @@ Exceptions must be caught no matter what.
 //=============================================================================
 
 #ifdef _MSC_VER
-#define FLIF_DLLEXPORT __declspec(dllexport)
+ #ifdef FLIF_BUILD_DLL
+  #define FLIF_DLLEXPORT __declspec(dllexport)
+ #else
+  #define FLIF_DLLEXPORT
+ #endif
 #else
 #define FLIF_DLLEXPORT __attribute__ ((visibility ("default")))
 #endif
@@ -242,6 +248,15 @@ FLIF_DLLEXPORT uint8_t FLIF_API flif_image_get_nb_channels(FLIF_IMAGE* image) {
         int nb = image->image.numPlanes();
         if (nb > 4) nb = 4; // there could be an extra plane for FRA
         return nb;
+    }
+    catch(...) {}
+    return 0;
+}
+
+FLIF_DLLEXPORT uint32_t FLIF_API flif_image_get_frame_delay(FLIF_IMAGE* image) {
+    try
+    {
+        return image->image.frame_delay;
     }
     catch(...) {}
     return 0;

@@ -67,7 +67,7 @@ template<typename IO, typename Rac, typename Coder> void flif_decode_scanlines_i
               if (image.seen_before >= 0) { for(uint32_t c=0; c<image.cols(); c++) image.set(p,r,c,images[image.seen_before](p,r,c)); continue; }
               if (fr>0) {
                 for (uint32_t c = 0; c < begin; c++)
-                   if (nump>3 && p<3 && image(3,r,c) == 0) image.set(p,r,c,predict_and_calcProps_scanlines(properties,ranges,image,p,r,c,min,max));
+                   if (nump>3 && p<3 && image(3,r,c) == 0) image.set(p,r,c,predict(image,p,r,c));
                    else if (p !=4 ) image.set(p,r,c,images[fr-1](p,r,c));
                    /*
                    else if (nump>4 && p<4 && image(4,r,c) > 0) image.set(p,r,c,images[fr-image(4,r,c)](p,r,c));
@@ -80,16 +80,16 @@ template<typename IO, typename Rac, typename Coder> void flif_decode_scanlines_i
                 if (nump>3 && p<3) { begin=0; end=image.cols(); }
               }
               for (uint32_t c = begin; c < end; c++) {
+                if (nump>3 && p<3 && image(3,r,c) == 0) {image.set(p,r,c,predict(image,p,r,c)); continue;}
+                if (nump>4 && p<4 && image(4,r,c) > 0) {assert(fr >= image(4,r,c)); image.set(p,r,c,images[fr-image(4,r,c)](p,r,c)); continue;}
                 ColorVal guess = predict_and_calcProps_scanlines(properties,ranges,image,p,r,c,min,max);
                 if (p==4 && max > fr) max = fr;
-                if (nump>3 && p<3 && image(3,r,c) == 0) {image.set(p,r,c,guess); continue;}
-                if (nump>4 && p<4 && image(4,r,c) > 0) {image.set(p,r,c,images[fr-image(4,r,c)](p,r,c)); continue;}
                 ColorVal curr = coders[p].read_int(properties, min - guess, max - guess) + guess;
                 image.set(p,r,c, curr);
               }
               if (fr>0) {
                 for (uint32_t c = end; c < image.cols(); c++)
-                   if (nump>3 && p<3 && image(3,r,c) == 0) image.set(p,r,c,predict_and_calcProps_scanlines(properties,ranges,image,p,r,c,min,max));
+                   if (nump>3 && p<3 && image(3,r,c) == 0) image.set(p,r,c,predict(image,p,r,c));
                    else if (p !=4 ) image.set(p,r,c,images[fr-1](p,r,c));
 /*                   else if (nump>4 && p<4 && image(4,r,c) > 0) image.set(p,r,c,images[fr-image(4,r,c)](p,r,c));
                    else {
@@ -416,16 +416,16 @@ bool flif_decode(IO& io, Images &images, int quality, int scale, uint32_t (*call
     v_printf(3,"\n");
 
     if (numFrames>1) {
+        // ignored for now (assuming loop forever)
         metaCoder.read_int(0, 100); // repeats (0=infinite)
-        for (int i=0; i<numFrames; i++) {
-           metaCoder.read_int(0, 60000); // time in ms between frames
-        }
     }
 
     for (int i=0; i<numFrames; i++) {
       images.push_back(Image());
       if (!images[i].init(width,height,0,maxmax,numPlanes)) return false;
+      if (numFrames>1) images[i].frame_delay = metaCoder.read_int(0, 60000); // time in ms between frames
       if (callback) partial_images.push_back(Image());
+      //if (numFrames>1) partial_images[i].frame_delay = images[i].frame_delay;
     }
     std::vector<const ColorRanges*> rangesList;
     std::vector<Transform<IO>*> transforms;
