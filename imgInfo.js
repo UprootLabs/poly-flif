@@ -25,7 +25,7 @@ var imgInfos = [
     imgSize: { width: 300, height: 300},
   },
   { name: 'clock',
-    fileSizes: { flif: 22823
+    fileSizes: { flif: 22949
      },
   },
   { name: 'kodim07',
@@ -72,11 +72,11 @@ var imgInfos = [
      },
   },
   { name: 'tea',
-    fileSizes: { flif: 483334
+    fileSizes: { flif: 483462
      },
   },
   { name: 'train',
-    fileSizes: { flif: 1246828
+    fileSizes: { flif: 1246955
      },
   },
   { name: 'watch_by8',
