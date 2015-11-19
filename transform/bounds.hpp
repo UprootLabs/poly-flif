@@ -16,6 +16,19 @@ public:
     int numPlanes() const { return bounds.size(); }
     ColorVal min(int p) const { assert(p<numPlanes()); return std::max(ranges->min(p), bounds[p].first); }
     ColorVal max(int p) const { assert(p<numPlanes()); return std::min(ranges->max(p), bounds[p].second); }
+    void snap(const int p, const prevPlanes &pp, ColorVal &min, ColorVal &max, ColorVal &v) const {
+        if (p==0 || p==3) { min=bounds[p].first; max=bounds[p].second; } // optimization for special case
+        else ranges->snap(p,pp,min,max,v);
+        if (min < bounds[p].first) min=bounds[p].first;
+        if (max > bounds[p].second) max=bounds[p].second;
+        if (min>max) {
+           // should happen only if alpha=0 interpolation produces YI combination for which Q range from ColorRangesYIQ is outside bounds
+           min=bounds[p].first;
+           max=bounds[p].second;
+        }
+        if(v>max) v=max;
+        if(v<min) v=min;
+    }
     void minmax(const int p, const prevPlanes &pp, ColorVal &min, ColorVal &max) const {
         assert(p<numPlanes());
         if (p==0 || p==3) { min=bounds[p].first; max=bounds[p].second; return; } // optimization for special case
@@ -88,7 +101,7 @@ protected:
             for (const Image& image : images)
             for (uint32_t r=0; r<image.rows(); r++) {
                 for (uint32_t c=0; c<image.cols(); c++) {
-                    if (nump>3 && p<3 && image(3,r,c)==0) continue; // don't take fully transparent pixels into account
+                    if (image.alpha_zero_special && nump>3 && p<3 && image(3,r,c)==0) continue; // don't take fully transparent pixels into account
                     ColorVal v = image(p,r,c);
                     if (v < min) min = v;
                     if (v > max) max = v;

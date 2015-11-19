@@ -29,25 +29,6 @@ public:
 
 class Tree : public std::vector<PropertyDecisionNode>
 {
-#ifdef STATS
-protected:
-    void print_subtree(FILE* file, int pos, int indent) const {
-        const PropertyDecisionNode &n = (*this)[pos];
-        for (int i=0; i<2*indent; i++) fputc(' ', file);
-        if (n.property == -1)
-            fprintf(file, "* leaf id=%i\n", n.leafID);
-        else {
-            fprintf(file, "* split on prop %i at val %i after %lli steps\n", n.property, n.splitval, (long long int)n.count);
-            print_subtree(file, n.childID, indent+1);
-            print_subtree(file, n.childID+1, indent+1);
-        }
-    }
-public:
-    void print(FILE *file) const {
-        print_subtree(file, 0, 0);
-    }
-
-#endif
 
 public:
     Tree() : std::vector<PropertyDecisionNode>(1, PropertyDecisionNode()) {}
@@ -57,46 +38,13 @@ public:
 template <typename BitChance, int bits> class FinalCompoundSymbolChances
 {
 public:
-#ifdef STATS
-    int64_t s_count;
-    double sum;
-    double qsum;
-#endif
     SymbolChance<BitChance, bits> realChances;
 
     FinalCompoundSymbolChances() {
-#ifdef STATS
-        s_count = 0;
-        sum = 0.0;
-        qsum = 0.0;
-#endif
     }
 
     const SymbolChance<BitChance, bits> &chances() const { return realChances; }
 
-#ifdef STATS
-    void info(int n) const {
-        std::vector<double> chs;
-        realChances.dist(chs);
-        indent(n); printf("Chances:\n");
-        indent(n+1); printf("Totals ints: %llu\n" , (unsigned long long)s_count);
-        indent(n+1); printf("Total bits/int: %.4f [", chs[0]/s_count);
-        double bestchs = 1.0/0.0;
-        int bestidx = -1;
-        for (unsigned int i=1; i<chs.size(); i++) {
-            printf("%.4f ", chs[i]/s_count);
-            if (chs[i] < bestchs) {
-               bestchs = chs[i];
-               bestidx = i-1;
-            }
-        }
-        printf("]\n");
-//        indent(n+1); printf("Average: %.3f+=%.3f (normal optimal bits/int: %.3f)\n", mu, sigma, nbps);
-        indent(n+1); printf("Loss for const scale: %.1f bits (%.1f cnp)\n", bestchs - chs[0], log(bestchs/chs[0])*100.0);
-        indent(n+1); printf("Best scale: %i\n", bestidx);
-        realChances.info_symbol(n+1);
-    }
-#endif
 };
 
 #ifdef HAS_ENCODER
@@ -153,7 +101,7 @@ public:
 
     bool inline read(const SymbolChanceBitType type, const int i = 0) {
         BitChance& ch = chances.realChances.bit(type, i);
-        bool bit = rac.read(ch.get());
+        bool bit = rac.read_12bit_chance(ch.get_12bit());
         updateChances(type, i, bit);
         return bit;
     }
@@ -161,7 +109,7 @@ public:
 #ifdef HAS_ENCODER
     void inline write(const bool bit, const SymbolChanceBitType type, const int i = 0) {
         BitChance& ch = chances.realChances.bit(type, i);
-        rac.write(ch.get(), bit);
+        rac.write_12bit_chance(ch.get_12bit(), bit);
         updateChances(type, i, bit);
     }
 #endif
@@ -222,7 +170,7 @@ public:
 
     bool read(SymbolChanceBitType type, int i = 0) {
         BitChance& ch = bestChance(type, i);
-        bool bit = rac.read(ch.get());
+        bool bit = rac.read_12bit_chance(ch.get_12bit());
         updateChances(type, i, bit);
 //    e_printf("bit %s%i = %s\n", SymbolChanceBitName[type], i, bit ? "true" : "false");
         return bit;
@@ -230,7 +178,7 @@ public:
 
     void write(bool bit, SymbolChanceBitType type, int i = 0) {
         BitChance& ch = bestChance(type, i);
-        rac.write(ch.get(), bit);
+        rac.write_12bit_chance(ch.get_12bit(), bit);
         updateChances(type, i, bit);
 //    e_printf("bit %s%i = %s\n", SymbolChanceBitName[type], i, bit ? "true" : "false");
     }
@@ -251,19 +199,12 @@ public:
     int read_int(FinalCompoundSymbolChances<BitChance, bits> &chancesIn, int min, int max) {
         FinalCompoundSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, rac, chancesIn);
         int val = reader<bits>(bitCoder, min, max);
-//        printf("%i in %i..%i\n",val, min, max);
         return val;
     }
 
 #ifdef HAS_ENCODER
     void write_int(FinalCompoundSymbolChances<BitChance, bits>& chancesIn, int min, int max, int val) {
-#ifdef STATS
-        chancesIn.sum += (double)val;
-        chancesIn.qsum += (double)val*val;
-        chancesIn.s_count++;
-#endif
         FinalCompoundSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, rac, chancesIn);
-//        printf("%i in %i..%i\n",val, min, max);
         writer<bits>(bitCoder, min, max, val);
     }
 #endif
@@ -276,11 +217,6 @@ public:
 
 #ifdef HAS_ENCODER
     void write_int(FinalCompoundSymbolChances<BitChance, bits>& chancesIn, int nbits, int val) {
-#ifdef STATS
-        chancesIn.sum += (double)val;
-        chancesIn.qsum += (double)val*val;
-        chancesIn.s_count++;
-#endif
         FinalCompoundSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, rac, chancesIn);
         writer(bitCoder, nbits, val);
     }
@@ -329,12 +265,12 @@ template <typename BitChance, typename RAC, int bits> class FinalPropertySymbolC
 {
 private:
     FinalCompoundSymbolCoder<BitChance, RAC, bits> coder;
-    Ranges range;
+    //Ranges range;
     unsigned int nb_properties;
     std::vector<FinalCompoundSymbolChances<BitChance,bits> > leaf_node;
     Tree &inner_node;
 
-    FinalCompoundSymbolChances<BitChance,bits> inline &find_leaf(Properties &properties) {
+    FinalCompoundSymbolChances<BitChance,bits> inline &find_leaf(const Properties &properties) {
         Tree::size_type pos = 0;
         while(inner_node[pos].property != -1) {
             if (inner_node[pos].count < 0) {
@@ -370,53 +306,44 @@ private:
 public:
     FinalPropertySymbolCoder(RAC& racIn, Ranges &rangeIn, Tree &treeIn, int ignored_split_threshold = 0) :
         coder(racIn),
-        range(rangeIn),
-        nb_properties(range.size()),
+//        range(rangeIn),
+        nb_properties(rangeIn.size()),
         leaf_node(1,FinalCompoundSymbolChances<BitChance,bits>()),
         inner_node(treeIn) 
     {
         inner_node[0].leafID = 0;
     }
 
-    int read_int(Properties &properties, int min, int max) {
+    int read_int(const Properties &properties, int min, int max) {
         if (min == max) { return min; }
-        assert(properties.size() == range.size());
+        assert(properties.size() == nb_properties);
         FinalCompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         return coder.read_int(chances, min, max);
     }
 
 #ifdef HAS_ENCODER
-    void write_int(Properties &properties, int min, int max, int val) {
+    void write_int(const Properties &properties, int min, int max, int val) {
         if (min == max) { assert(val==min); return; }
-        assert(properties.size() == range.size());
+        assert(properties.size() == nb_properties);
         FinalCompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         coder.write_int(chances, min, max, val);
     }
 #endif
 
-    int read_int(Properties &properties, int nbits) {
-        assert(properties.size() == range.size());
+    int read_int(const Properties &properties, int nbits) {
+        assert(properties.size() == nb_properties);
         FinalCompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         return coder.read_int(chances, nbits);
     }
 
 #ifdef HAS_ENCODER
-    void write_int(Properties &properties, int nbits, int val) {
-        assert(properties.size() == range.size());
+    void write_int(const Properties &properties, int nbits, int val) {
+        assert(properties.size() == nb_properties);
         FinalCompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         coder.write_int(chances, nbits, val);
     }
 #endif
 
-#ifdef STATS
-    void info(int n) const {
-        indent(n); printf("Tree:\n");
-        for (unsigned int i=0; i<leaf_node.size(); i++) {
-            indent(n); printf("Leaf %u\n", i);
-            leaf_node[i].info(n+1);
-        }
-    }
-#endif
     void simplify(int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE) {}
 };
 
@@ -436,9 +363,6 @@ private:
     Tree &inner_node;
     std::vector<bool> selection;
     int split_threshold;
-#ifdef STATS
-    uint64_t symbols;
-#endif
 
     CompoundSymbolChances<BitChance,bits> inline &find_leaf(const Properties &properties) {
         uint32_t pos = 0;
@@ -463,8 +387,9 @@ private:
 
           int8_t p = result.best_property;
           PropertyVal splitval = result.virtPropSum[p]/result.count;
+  //        if (splitval > current_ranges[result.best_property].first && splitval <= 0) splitval--; // division rounds towards zero, we want to round down
           if (splitval >= current_ranges[result.best_property].second)
-            splitval = current_ranges[result.best_property].second-1; // == does happen because of rounding and running average
+             splitval = current_ranges[result.best_property].second-1; // == does happen because of rounding and running average
 
           uint32_t new_inner = inner_node.size();
           inner_node.push_back(inner_node[pos]);
@@ -504,7 +429,9 @@ private:
             assert(properties[i] <= range[i].second);
             chances.virtPropSum[i] += properties[i];
 //        fprintf(stdout,"Property %i: %i ||",i,properties[i]);
-            selection[i] = (properties[i] > chances.virtPropSum[i]/chances.count);
+            PropertyVal splitval = chances.virtPropSum[i]/chances.count;
+//            if (splitval > range[i].first && splitval <= 0) splitval--;
+            selection[i] = (properties[i] > splitval);
         }
 //    fprintf(stdout,"\n");
     }
@@ -519,15 +446,9 @@ public:
         inner_node(treeIn),
         selection(nb_properties,false),
         split_threshold(st) {
-#ifdef STATS
-            symbols = 0;
-#endif
     }
 
     int read_int(Properties &properties, int min, int max) {
-#ifdef STATS
-        symbols++;
-#endif
         CompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         set_selection_and_update_property_sums(properties,chances);
         CompoundSymbolChances<BitChance,bits> &chances2 = find_leaf(properties);
@@ -535,9 +456,6 @@ public:
     }
 
     void write_int(Properties &properties, int min, int max, int val) {
-#ifdef STATS
-        symbols++;
-#endif
         CompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         set_selection_and_update_property_sums(properties,chances);
         CompoundSymbolChances<BitChance,bits> &chances2 = find_leaf(properties);
@@ -545,9 +463,6 @@ public:
     }
 
     int read_int(Properties &properties, int nbits) {
-#ifdef STATS
-        symbols++;
-#endif
         CompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         set_selection_and_update_property_sums(properties,chances);
         CompoundSymbolChances<BitChance,bits> &chances2 = find_leaf(properties);
@@ -555,20 +470,11 @@ public:
     }
 
     void write_int(Properties &properties, int nbits, int val) {
-#ifdef STATS
-        symbols++;
-#endif
         CompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
         set_selection_and_update_property_sums(properties,chances);
         CompoundSymbolChances<BitChance,bits> &chances2 = find_leaf(properties);
         coder.write_int(chances2, selection, nbits, val);
     }
-
-#ifdef STATS
-    void info(int n) const {
-    }
-#endif
-
 
     // destructive simplification procedure, prunes subtrees with too low counts
     long long int simplify_subtree(int pos, int divisor, int min_size) {

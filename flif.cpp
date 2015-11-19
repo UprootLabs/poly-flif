@@ -88,11 +88,14 @@ void show_help() {
     v_printf(1,"   -i, --interlace          interlacing (default, except for tiny images)\n");
     v_printf(1,"   -n, --no-interlace       force no interlacing\n");
     v_printf(1,"   -f, --frame-delay=N      delay between animation frames, in ms; default: -f100\n");
+    v_printf(1,"   -A, --keep-alpha-zero    store original RGB values behind A=0\n");
 //    v_printf(1,"Multiple input images (for animated FLIF) must have the same dimensions.\n");
-    v_printf(2,"Advanced encode options: (useful for flifcrushing)\n");
+    v_printf(2,"Advanced encode options: (mostly useful for flifcrushing)\n");
     v_printf(2,"   -a, --acb                force auto color buckets (ACB)\n");
     v_printf(2,"   -b, --no-acb             force no auto color buckets\n");
-    v_printf(2,"   -p, --palette=N          max palette size for PLT and PLA; default: -p512\n");
+    v_printf(2,"   -p, --palette=N          max palette size for PLT and PLA; default: -p1024\n");
+    v_printf(2,"   -C, --no-plc             disable PLC transform (no channel compactification)\n");
+    v_printf(2,"   -R, --rgb                disable YIQ transform (use plain RGB instead)\n");
     v_printf(2,"   -l, --lookback=N         max lookback between animation frames (for FRA); default: -l1\n");
     v_printf(2,"   -r, --repeats=N          MANIAC learning iterations; default: -r%i\n",TREE_LEARN_REPEATS);
     v_printf(2,"   -S, --split-threshold=N  MANIAC tree growth criterion, in bits saved; default: -S%i\n",CONTEXT_TREE_SPLIT_THRESHOLD/5461);
@@ -126,7 +129,7 @@ bool file_is_flif(const char * filename){
 
 void show_banner() {
       v_printf(3," ______ __  (())______");
-    v_printf(3,"\n \\___  |  | |  |  ___/   ");v_printf(2,"FLIF 0.1.2 [4 November 2015]");
+    v_printf(3,"\n \\___  |  | |  |  ___/   ");v_printf(2,"FLIF 0.1.7 [18 November 2015]");
     v_printf(3,"\n  \\__  |  |_|__|  __/    Free Lossless Image Format");
     v_printf(3,"\n    \\__|_______|__/    ");v_printf(2,"  (c) 2010-2015 J.Sneyers & P.Wuille, GNU GPL v3+\n");
     v_printf(3,"\n");
@@ -139,7 +142,8 @@ bool check_compatible_extension (char *ext) {
                   || !strcasecmp(ext,".pgm")
                   || !strcasecmp(ext,".pbm")
                   || !strcasecmp(ext,".pam")
-                  || !strcasecmp(ext,".rggb")))) {
+                  || !strcasecmp(ext,".rggb")
+                  ))) {
         return false;
     } else {
         return true;
@@ -178,28 +182,44 @@ bool encode_load_input_images(int argc, char **argv, Images &images) {
     v_printf(2,"\n");
     return true;
 }
-bool encode_flif(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD) {
+bool encode_flif(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int yiq=1, int plc=1) {
     bool flat=true;
     for (Image &image : images) if (image.uses_alpha()) flat=false;
     if (flat && images[0].numPlanes() == 4) {
         v_printf(2,"Alpha channel not actually used, dropping it.\n");
         for (Image &image : images) image.drop_alpha();
     }
+    bool grayscale=true;
+    for (Image &image : images) if (image.uses_color()) grayscale=false;
+    if (grayscale && images[0].numPlanes() == 3) {
+        v_printf(2,"Chroma not actually used, dropping it.\n");
+        for (Image &image : images) image.drop_color();
+    }
     uint64_t nb_pixels = (uint64_t)images[0].rows() * images[0].cols();
     std::vector<std::string> desc;
-    desc.push_back("YIQ");  // convert RGB(A) to YIQ(A)
-    desc.push_back("BND");  // get the bounds of the color spaces
+    if (nb_pixels > 2) {         // no point in doing anything for 1- or 2-pixel images
+      if (plc)
+        desc.push_back("PLC");  // compactify channels
+      if (yiq)
+        desc.push_back("YIQ");  // convert RGB(A) to YIQ(A)
+        desc.push_back("BND");  // get the bounds of the color spaces
+    }
+    if (palette_size < 0) {
+        palette_size = 1024;
+        if (nb_pixels * images.size() / 2 < 1024) palette_size = nb_pixels * images.size() / 2;
+    }
     if (palette_size > 0)
         desc.push_back("PLA");  // try palette (including alpha)
     if (palette_size > 0)
         desc.push_back("PLT");  // try palette (without alpha)
+
     if (acb == -1) {
         // not specified if ACB should be used
-        if (nb_pixels > 10000) desc.push_back("ACB");  // try auto color buckets on large images
+        if (nb_pixels * images.size() > 10000) desc.push_back("ACB");  // try auto color buckets on large images
     } else if (acb) desc.push_back("ACB");  // try auto color buckets if forced
     if (method.o == Optional::undefined) {
         // no method specified, pick one heuristically
-        if (nb_pixels < 10000) method.encoding=flifEncoding::nonInterlaced; // if the image is small, not much point in doing interlacing
+        if (nb_pixels * images.size() < 10000) method.encoding=flifEncoding::nonInterlaced; // if the image is small, not much point in doing interlacing
         else method.encoding=flifEncoding::interlaced; // default method: interlacing
     }
     if (images.size() > 1) {
@@ -210,7 +230,7 @@ bool encode_flif(int argc, char **argv, Images &images, int palette_size, int ac
     if (learn_repeats < 0) {
         // no number of repeats specified, pick a number heuristically
         learn_repeats = TREE_LEARN_REPEATS;
-        if (nb_pixels < 5000) learn_repeats--;        // avoid large trees for small images
+        if (nb_pixels * images.size() < 5000) learn_repeats--;        // avoid large trees for small images
         if (learn_repeats < 0) learn_repeats=0;
     }
     FILE *file = fopen(argv[0],"wb");
@@ -220,12 +240,13 @@ bool encode_flif(int argc, char **argv, Images &images, int palette_size, int ac
     return flif_encode(fio, images, desc, method.encoding, learn_repeats, acb, frame_delay, palette_size, lookback, divisor, min_size, split_threshold);
 }
 
-bool handle_encode(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD) {
+bool handle_encode(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int yiq=1, int plc=1, bool alpha_zero_special=true) {
     if (!encode_load_input_images(argc,argv,images)) return false;
     for (Image& i : images) i.frame_delay = frame_delay;
+    if (!alpha_zero_special) for (Image& i : images) i.alpha_zero_special = false;
     argv += (argc-1);
     argc = 1;
-    return encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold);
+    return encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc);
 }
 #endif
 
@@ -271,11 +292,14 @@ int main(int argc, char **argv)
     int learn_repeats = -1;
     int acb = -1; // try auto color buckets
     int frame_delay = 100;
-    int palette_size = 512;
+    int palette_size = -1;
     int lookback = 1;
     int divisor=CONTEXT_TREE_COUNT_DIV;
     int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE;
     int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD;
+    int yiq = 1;
+    int plc = 1;
+    bool alpha_zero_special = true;
 #else
     int mode = 1;
 #endif
@@ -306,12 +330,15 @@ int main(int argc, char **argv)
         {"divisor", 1, NULL, 'D'},
         {"min-size", 1, NULL, 'M'},
         {"split-threshold", 1, NULL, 'S'},
+        {"rgb", 0, NULL, 'R'},
+        {"no-plc", 0, NULL, 'C'},
+        {"keep-alpha-zero", 0, NULL, 'A'},
 #endif
         {0, 0, 0, 0}
     };
     int i,c;
 #ifdef HAS_ENCODER
-    while ((c = getopt_long (argc, argv, "hedtvinabq:s:p:r:f:l:D:M:S:", optlist, &i)) != -1) {
+    while ((c = getopt_long (argc, argv, "hedtvinabq:s:p:r:f:l:D:M:S:RCA", optlist, &i)) != -1) {
 #else
     while ((c = getopt_long (argc, argv, "hdvq:s:", optlist, &i)) != -1) {
 #endif
@@ -354,7 +381,9 @@ int main(int argc, char **argv)
                   if (split_threshold <= 0 || split_threshold > 100000) {e_printf("Not a sensible number for option -S\n"); return 1; }
                   split_threshold *= 5461;
                   break;
-
+        case 'R': yiq=0; break;
+        case 'C': plc=0; break;
+        case 'A': alpha_zero_special=false; break;
 #endif
         case 'h': showhelp=true; break;
         default: show_help(); return 0;
@@ -414,7 +443,7 @@ int main(int argc, char **argv)
 
 #ifdef HAS_ENCODER
     if (mode == 0) {
-        if (!handle_encode(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold)) return 2;
+        if (!handle_encode(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc, alpha_zero_special)) return 2;
     } else if (mode == 1) {
 #endif
         return handle_decode(argv, images, quality, scale);
@@ -423,7 +452,7 @@ int main(int argc, char **argv)
         if (scale > 1) {e_printf("Not yet supported: transcoding downscaled image; use decode + encode!\n");}
         if (!decode_flif(argv, images, quality, scale)) return 2;
         argc--; argv++;
-        if (!encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold)) return 2;
+        if (!encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc)) return 2;
     }
 #endif
     return 0;

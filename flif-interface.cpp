@@ -33,29 +33,34 @@ void FLIF_IMAGE::read_row_RGBA8(uint32_t row, void* buffer, size_t buffer_size_b
         return;
 
     FLIF_RGBA* buffer_rgba = reinterpret_cast<FLIF_RGBA*>(buffer);
+    int rshift = 0;
+    int lshift = 1;
+    ColorVal m=image.max(0);
+    while (m > 255) { rshift++; m = m >> 1; } // in case the image has bit depth higher than 8
+    while (m * ((1 << lshift)-1) < 255) { lshift++; } // in case the image has bit depth lower than 8
 
     if(image.numPlanes() >= 3) {
         // color
         for (size_t c = 0; c < (size_t) image.cols(); c++) {
-            buffer_rgba[c].r = image(0, row, c) & 0xFF;
-            buffer_rgba[c].g = image(1, row, c) & 0xFF;
-            buffer_rgba[c].b = image(2, row, c) & 0xFF;
+            buffer_rgba[c].r = ((image(0, row, c) >> rshift) * ((1<<lshift)-1)) & 0xFF;
+            buffer_rgba[c].g = ((image(1, row, c) >> rshift) * ((1<<lshift)-1)) & 0xFF;
+            buffer_rgba[c].b = ((image(2, row, c) >> rshift) * ((1<<lshift)-1)) & 0xFF;
         }
     } else {
         // grayscale
         for (size_t c = 0; c < (size_t) image.cols(); c++) {
             buffer_rgba[c].r =
             buffer_rgba[c].g =
-            buffer_rgba[c].b = image(0, row, c) & 0xFF;
+            buffer_rgba[c].b = ((image(0, row, c) >> rshift) * ((1<<lshift)-1)) & 0xFF;
         }
     }
     if(image.numPlanes() >= 4) {
         for (size_t c = 0; c < (size_t) image.cols(); c++) {
-            buffer_rgba[c].a = image(3, row, c) & 0xFF;
+            buffer_rgba[c].a = ((image(3, row, c) >> rshift) * ((1<<lshift)-1)) & 0xFF;
         }
     } else {
         for (size_t c = 0; c < (size_t) image.cols(); c++) {
-            buffer_rgba[c].a = 0xFF;
+            buffer_rgba[c].a = 0xFF;  // fully opaque
         }
     }
 }
@@ -127,11 +132,13 @@ FLIF_ENCODER::FLIF_ENCODER()
 , divisor(CONTEXT_TREE_COUNT_DIV)
 , min_size(CONTEXT_TREE_MIN_SUBTREE_SIZE)
 , split_threshold(CONTEXT_TREE_SPLIT_THRESHOLD)
+, alpha_zero_special(1)
 {
 }
 
 void FLIF_ENCODER::add_image(FLIF_IMAGE* image) {
     images.push_back(image);
+    if (!alpha_zero_special) image->image.alpha_zero_special = false;
 }
 
 /*!
@@ -148,7 +155,7 @@ int32_t FLIF_ENCODER::encode_file(const char* filename) {
     for(size_t i = 0; i < images.size(); ++i)
         copies.push_back(images[i]->image.clone());
 
-    std::vector<std::string> transDesc = {"YIQ","BND","PLA","PLT","ACB","DUP","FRS","FRA"};
+    std::vector<std::string> transDesc = {"PLC","YIQ","BND","PLA","PLT","ACB","DUP","FRS","FRA"};
 
     if(!flif_encode(fio, copies, transDesc,
         interlaced != 0 ? flifEncoding::interlaced : flifEncoding::nonInterlaced,
@@ -432,6 +439,10 @@ FLIF_DLLEXPORT void FLIF_API flif_encoder_set_min_size(FLIF_ENCODER* encoder, in
 }
 FLIF_DLLEXPORT void FLIF_API flif_encoder_set_split_threshold(FLIF_ENCODER* encoder, int32_t split_threshold) {
     try { encoder->split_threshold = split_threshold; }
+    catch(...) { }
+}
+FLIF_DLLEXPORT void FLIF_API flif_encoder_set_alpha_zero_lossless(FLIF_ENCODER* encoder) {
+    try { encoder->alpha_zero_special = 0; }
     catch(...) { }
 }
 

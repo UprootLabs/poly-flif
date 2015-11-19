@@ -71,7 +71,7 @@ ColorVal static inline get_max_q(int par, ColorVal y, ColorVal i) {
     } else if (y>=3*par) {
       return 4*par-1+2*(4*par-1-y)-((1+abs(i-4*par+1))/2)*2;
     } else {
-      return (std::min)(6*par-2+(y-par+1)*2, 6*par-1+(3*par-1-y)*2-((1+abs(i-4*par+1))/2)*2);
+      return std::min(6*par-2+(y-par+1)*2, 6*par-1+(3*par-1-y)*2-((1+abs(i-4*par+1))/2)*2);
     }
 }
 
@@ -111,13 +111,16 @@ template <typename IO>
 class TransformYIQ : public Transform<IO> {
 protected:
     int par;
+    const ColorRanges *ranges;
 
 public:
     bool virtual init(const ColorRanges *srcRanges) {
         if (srcRanges->numPlanes() < 3) return false;
         if (srcRanges->min(0) < 0 || srcRanges->min(1) < 0 || srcRanges->min(2) < 0) return false;
+        if (srcRanges->min(0) == srcRanges->max(0) || srcRanges->min(1) == srcRanges->max(1) || srcRanges->min(2) == srcRanges->max(2)) return false;
         int max = std::max(std::max(srcRanges->max(0), srcRanges->max(1)), srcRanges->max(2));
         par = max/4+1;
+        ranges = srcRanges;
         return true;
     }
 
@@ -128,14 +131,17 @@ public:
 #ifdef HAS_ENCODER
     void data(Images& images) const {
 //        printf("TransformYIQ::data: par=%i\n", par);
+        register ColorVal R,G,B,Y,I,Q;
         for (Image& image : images)
         for (uint32_t r=0; r<image.rows(); r++) {
             for (uint32_t c=0; c<image.cols(); c++) {
-                int R=image(0,r,c), G=image(1,r,c), B=image(2,r,c);
+                R=image(0,r,c);
+                G=image(1,r,c);
+                B=image(2,r,c);
 
-                int Y = ((R + B) / 2 + G) / 2;
-                int I = R - B + par*4 - 1;
-                int Q = (R + B) / 2 - G + par*4 - 1;
+                Y = (((R + B)>>1) + G)>>1;
+                I = R - B + par*4 - 1;
+                Q = ((R + B)>>1) - G + par*4 - 1;
 
                 image.set(0,r,c, Y);
                 image.set(1,r,c, I);
@@ -145,23 +151,32 @@ public:
     }
 #endif
     void invData(Images& images) const {
-        for (Image& image : images)
-        for (uint32_t r=0; r<image.rows(); r++) {
+        ColorVal R,G,B,Y,I,Q;
+        const ColorVal max[3] = {ranges->max(0), ranges->max(1), ranges->max(2)};
+        for (Image& image : images) {
+          image.undo_make_constant_plane(0);
+          image.undo_make_constant_plane(1);
+          image.undo_make_constant_plane(2);
+          for (uint32_t r=0; r<image.rows(); r++) {
             for (uint32_t c=0; c<image.cols(); c++) {
-                int Y=image(0,r,c), I=image(1,r,c), Q=image(2,r,c);
+                Y=image(0,r,c);
+                I=image(1,r,c);
+                Q=image(2,r,c);
 
-                int R = Y + (Q + 2) / 2 + (I + 2) / 2 - 4*par;
-                int G = Y - (Q + 1) / 2 + 2*par;
-                int B = Y + (Q + 2) / 2 - (I + 1) / 2;
+                R = Y + ((Q + 2)>>1) + ((I + 2)>>1) - 4*par;
+                G = Y - ((Q + 1)>>1) + 2*par;
+                B = Y + ((Q + 2)>>1) - ((I + 1)>>1);
 
-                // clipping only needed in case of lossy/partial decoding
-                clip(R, 0, par*4-1);
-                clip(G, 0, par*4-1);
-                clip(B, 0, par*4-1);
+                clip(R, 0, max[0]);                // clipping only needed in case of lossy/partial decoding
+                clip(G, 0, max[1]);
+                clip(B, 0, max[2]);
+
                 image.set(0,r,c, R);
                 image.set(1,r,c, G);
                 image.set(2,r,c, B);
             }
+          }
         }
     }
 };
+

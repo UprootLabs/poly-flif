@@ -26,8 +26,10 @@ enum class flifEncoding : uint8_t {
 extern std::vector<ColorVal> grey; // a pixel with values in the middle of the bounds
 extern int64_t pixels_todo;
 extern int64_t pixels_done;
+extern int progressive_qual_target;
 
-#define MAX_TRANSFORM 8
+
+#define MAX_TRANSFORM 9
 
 extern const std::vector<std::string> transforms;
 extern uint8_t transform_l;

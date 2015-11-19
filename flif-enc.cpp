@@ -30,33 +30,37 @@ template<typename RAC> void static write_name(RAC& rac, std::string desc)
     transform_l = nb+1;
 }
 
-
-template<typename Rac, typename Coder> void flif_encode_scanlines_inner(Rac rac, std::vector<Coder> &coders, const Images &images, const ColorRanges *ranges)
-{
+// alphazero = true: image has alpha plane and A=0 implies RGB(YIQ) is irrelevant
+// alphazero = false: image either has no alpha plane, or A=0 has no special meaning
+// FRA = true: image has FRA plane (animation with lookback)
+template<typename Rac, typename Coder>
+void flif_encode_scanlines_inner(Rac rac, std::vector<Coder> &coders, const Images &images, const ColorRanges *ranges) {
     ColorVal min,max;
     long fs = rac.ftell();
     long pixels = images[0].cols()*images[0].rows()*images.size();
-    int nump = images[0].numPlanes();
+    const int nump = images[0].numPlanes();
+    const bool alphazero = (nump>3 && images[0].alpha_zero_special);
+    const bool FRA = (nump == 5);
     for (int k=0,i=0; k < 5; k++) {
         int p=PLANE_ORDERING[k];
         if (p>=nump) continue;
         i++;
+        if (ranges->min(p) >= ranges->max(p)) continue;
         Properties properties((nump>3?NB_PROPERTIES_scanlinesA[p]:NB_PROPERTIES_scanlines[p]));
         v_printf(2,"\r%i%% done [%i/%i] ENC[%ux%u]    ",(int)(100*pixels_done/pixels_todo),i,nump,images[0].cols(),images[0].rows());
         pixels_done += images[0].cols()*images[0].rows();
-        if (ranges->min(p) >= ranges->max(p)) continue;
         for (uint32_t r = 0; r < images[0].rows(); r++) {
             for (int fr=0; fr< (int)images.size(); fr++) {
               const Image& image = images[fr];
               if (image.seen_before >= 0) continue;
               uint32_t begin=image.col_begin[r], end=image.col_end[r];
               for (uint32_t c = begin; c < end; c++) {
-                if (nump>3 && p<3 && image(3,r,c) == 0) continue;
-                if (nump>4 && p<4 && image(4,r,c) > 0) continue;
+                if (alphazero && p<3 && image(3,r,c) == 0) continue;
+                if (FRA && p<4 && image(4,r,c) > 0) continue;
                 ColorVal guess = predict_and_calcProps_scanlines(properties,ranges,image,p,r,c,min,max);
                 ColorVal curr = image(p,r,c);
                 assert(p != 3 || curr >= -fr);
-                if (p==4 && max > fr) max = fr;
+                if (FRA && p==4 && max > fr) max = fr;
                 coders[p].write_int(properties, min - guess, max - guess, curr - guess);
               }
             }
@@ -83,35 +87,31 @@ void flif_encode_scanlines_pass(Rac &rac, const Images &images, const ColorRange
     }
 
     while(repeats-- > 0) {
-     flif_encode_scanlines_inner(rac, coders, images, ranges);
+     flif_encode_scanlines_inner<Rac,Coder>(rac, coders, images, ranges);
     }
 
     for (int p = 0; p < ranges->numPlanes(); p++) {
         coders[p].simplify(divisor, min_size);
     }
-
-    for (int p = 0; p < ranges->numPlanes(); p++) {
-#ifdef STATS
-        indent(0); v_printf(2,"Plane %i\n", p);
-        coders[p].info(0+1);
-#endif
-    }
 }
 
-template<typename Rac, typename Coder> void flif_encode_FLIF2_inner(Rac rac, std::vector<Coder> &coders, const Images &images, const ColorRanges *ranges, const int beginZL, const int endZL)
-{
+template<typename Rac, typename Coder>
+void flif_encode_FLIF2_inner(Rac rac, std::vector<Coder> &coders, const Images &images,
+                             const ColorRanges *ranges, const int beginZL, const int endZL) {
     ColorVal min,max;
-    int nump = images[0].numPlanes();
+    const int nump = images[0].numPlanes();
+    const bool alphazero = (nump>3 && images[0].alpha_zero_special);
+    const bool FRA = (nump == 5);
     long fs = rac.ftell();
     for (int i = 0; i < plane_zoomlevels(images[0], beginZL, endZL); i++) {
       std::pair<int, int> pzl = plane_zoomlevel(images[0], beginZL, endZL, i);
       int p = pzl.first;
       int z = pzl.second;
+      if (ranges->min(p) >= ranges->max(p)) continue;
       if (endZL==0) {
           v_printf(2,"\r%i%% done [%i/%i] ENC[%i,%ux%u]  ",(int) (100*pixels_done/pixels_todo),i,plane_zoomlevels(images[0], beginZL, endZL)-1,p,images[0].cols(z),images[0].rows(z));
       }
       pixels_done += (images[0].cols(z)/(z%2==0?1:2))*(images[0].rows(z)/(z%2==0?2:1));
-      if (ranges->min(p) >= ranges->max(p)) continue;
       Properties properties((nump>3?NB_PROPERTIESA[p]:NB_PROPERTIES[p]));
       if (z % 2 == 0) {
         // horizontal: scan the odd rows, output pixel values
@@ -122,11 +122,11 @@ template<typename Rac, typename Coder> void flif_encode_FLIF2_inner(Rac rac, std
               uint32_t begin=(image.col_begin[r*image.zoom_rowpixelsize(z)]/image.zoom_colpixelsize(z)),
                          end=(1+(image.col_end[r*image.zoom_rowpixelsize(z)]-1)/image.zoom_colpixelsize(z));
               for (uint32_t c = begin; c < end; c++) {
-                    if (nump>3 && p<3 && image(3,z,r,c) == 0) continue;
-                    if (nump>4 && p<4 && image(4,z,r,c) > 0) continue;
+                    if (alphazero && p<3 && image(3,z,r,c) == 0) continue;
+                    if (FRA && p<4 && image(4,z,r,c) > 0) continue;
                     ColorVal guess = predict_and_calcProps(properties,ranges,image,z,p,r,c,min,max);
                     ColorVal curr = image(p,z,r,c);
-                    if (p==4 && max > fr) max = fr;
+                    if (FRA && p==4 && max > fr) max = fr;
                     assert (curr <= max); assert (curr >= min);
                     coders[p].write_int(properties, min - guess, max - guess, curr - guess);
               }
@@ -143,11 +143,11 @@ template<typename Rac, typename Coder> void flif_encode_FLIF2_inner(Rac rac, std
               if (begin>1 && ((begin&1) ==0)) begin--;
               if (begin==0) begin=1;
               for (uint32_t c = begin; c < end; c+=2) {
-                    if (nump>3 && p<3 && image(3,z,r,c) <= 0) continue;
-                    if (nump>4 && p<4 && image(4,z,r,c) > 0) continue;
+                    if (alphazero && p<3 && image(3,z,r,c) == 0) continue;
+                    if (FRA && p<4 && image(4,z,r,c) > 0) continue;
                     ColorVal guess = predict_and_calcProps(properties,ranges,image,z,p,r,c,min,max);
                     ColorVal curr = image(p,z,r,c);
-                    if (p==4 && max > fr) max = fr;
+                    if (FRA && p==4 && max > fr) max = fr;
                     assert (curr <= max); assert (curr >= min);
                     coders[p].write_int(properties, min - guess, max - guess, curr - guess);
               }
@@ -179,22 +179,17 @@ void flif_encode_FLIF2_pass(Rac &rac, const Images &images, const ColorRanges *r
       SimpleSymbolCoder<FLIFBitChanceMeta, Rac, 24> metaCoder(rac);
       for (int p = 0; p < image.numPlanes(); p++) {
         ColorVal curr = image(p,0,0);
-        metaCoder.write_int(ranges->min(p), ranges->max(p), curr);
-        pixels_done++;
+        if (ranges->min(p) < ranges->max(p)) {
+            metaCoder.write_int(ranges->min(p), ranges->max(p), curr);
+            pixels_done++;
+        }
       }
     }
     while(repeats-- > 0) {
-     flif_encode_FLIF2_inner(rac, coders, images, ranges, beginZL, endZL);
+     flif_encode_FLIF2_inner<Rac,Coder>(rac, coders, images, ranges, beginZL, endZL);
     }
     for (int p = 0; p < images[0].numPlanes(); p++) {
         coders[p].simplify(divisor, min_size);
-    }
-
-    for (int p = 0; p < images[0].numPlanes(); p++) {
-#ifdef STATS
-        indent(0); v_printf(2,"Plane %i\n", p);
-        coders[p].info(0+1);
-#endif
     }
 }
 
@@ -262,22 +257,100 @@ template<typename BitChance, typename Rac> void flif_encode_tree(Rac &rac, const
         metacoder.write_tree(forest[p]);
     }
 }
+template <int bits, typename IO>
+void flif_encode_main(RacOut<IO>& rac, IO& io, Images &images, flifEncoding encoding,
+                 int learn_repeats, const ColorRanges *ranges,
+                 int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD) {
+
+    Image& image=images[0];
+
+    pixels_todo = (int64_t)image.rows()*image.cols()*ranges->numPlanes()*(learn_repeats+1);
+    pixels_done = 0;
+
+    // two passes
+    std::vector<Tree> forest(ranges->numPlanes(), Tree());
+    RacDummy dummy;
+
+
+    long fs = io.ftell();
+
+    int roughZL = 0;
+    if (encoding == flifEncoding::interlaced) {
+      roughZL = image.zooms() - NB_NOLEARN_ZOOMS-1;
+      if (roughZL < 0) roughZL = 0;
+      //v_printf(2,"Encoding rough data\n");
+      flif_encode_FLIF2_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, bits> >(rac, images, ranges, forest, image.zooms(), roughZL+1, 1, divisor, min_size, split_threshold);
+    }
+
+    //v_printf(2,"Encoding data (pass 1)\n");
+    if (learn_repeats>1) v_printf(3,"Learning a MANIAC tree. Iterating %i times.\n",learn_repeats);
+    switch(encoding) {
+        case flifEncoding::nonInterlaced:
+           flif_encode_scanlines_pass<RacDummy, PropertySymbolCoder<FLIFBitChancePass1, RacDummy, bits> >(dummy, images, ranges, forest, learn_repeats, divisor, min_size, split_threshold);
+           break;
+        case flifEncoding::interlaced:
+           flif_encode_FLIF2_pass<RacDummy, PropertySymbolCoder<FLIFBitChancePass1, RacDummy, bits> >(dummy, images, ranges, forest, roughZL, 0, learn_repeats, divisor, min_size, split_threshold);
+           break;
+    }
+    v_printf(3,"\rHeader: %li bytes.", fs);
+    if (encoding==flifEncoding::interlaced) v_printf(3," Rough data: %li bytes.", io.ftell()-fs);
+    fflush(stdout);
+
+    //v_printf(2,"Encoding tree\n");
+    fs = io.ftell();
+    flif_encode_tree<FLIFBitChanceTree, RacOut<IO>>(rac, ranges, forest, encoding);
+    v_printf(3," MANIAC tree: %li bytes.\n", io.ftell()-fs);
+    //v_printf(2,"Encoding data (pass 2)\n");
+    switch(encoding) {
+        case flifEncoding::nonInterlaced:
+           flif_encode_scanlines_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, bits> >(rac, images, ranges, forest, 1);
+           break;
+        case flifEncoding::interlaced:
+           flif_encode_FLIF2_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, bits> >(rac, images, ranges, forest, roughZL, 0, 1);
+           break;
+    }
+
+}
 
 template <typename IO>
 bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding,
-                 int learn_repeats, int acb, int frame_delay, int palette_size, int lookback, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD) {
-    io.fputs("FLIF");
+                 int learn_repeats, int acb, int frame_delay, int palette_size, int lookback,
+                 int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD) {
+
+    io.fputs("FLIF");  // bytes 1-4 are fixed magic
     int numPlanes = images[0].numPlanes();
     int numFrames = images.size();
-    char c=' '+16*(static_cast<uint8_t>(encoding))+numPlanes;
+
+    // byte 5 encodes color type, interlacing, animation
+    // 128 64 32 16 8 4 2 1
+    //                                                Gray8    RGB24    RGBA32    Gray16   RGB48    RGBA64
+    //      0  1  1           = scanlines, still     (FLIF11,  FLIF31,  FLIF41,   FLIF12,  FLIF32,  FLIF42)
+    //      1  0  0           = interlaced, still    (FLIFA1,  FLIFC1,  FLIFD1,   FLIFA2,  FLIFC2,  FLIFD2)
+    //      1  0  1           = scanlines, animated  (FLIFQx1, FLIFSx1, FLIFTx1,  FLIFQx2, FLIFSx2, FLIFTx2)   x=nb_frames
+    //      1  1  0           = interlaced, animated (FLIFax1, FLIFcx1, FLIFdx1,  FLIFax2, FLIFcx2, FLIFdx2)   x=nb_frames
+    //                0 0 1   = grayscale (1 plane)
+    //                0 1 1   = RGB (3 planes)
+    //                1 0 0   = RGBA (4 planes)       (grayscale + alpha is encoded as RGBA to keep the number of cases low)
+    //   0          0         (two spare bits, reserved for future use)
+    int c=' '+16*(static_cast<uint8_t>(encoding))+numPlanes;
     if (numFrames>1) c += 32;
     io.fputc(c);
+
+    // for animations: byte 6 = number of frames (or bytes 7 and 8 if nb_frames >= 255)
     if (numFrames>1) {
         if (numFrames<255) io.fputc((char)numFrames);
-        else {
+        else if (numFrames<0xffff) {
+            io.fputc(0xff);
+            io.fputc(numFrames >> 8);
+            io.fputc(numFrames & 0xff);
+        } else {
             e_printf("Too many frames!\n");
         }
     }
+
+    // next byte (byte 6 for still images, byte 7 or 9 for animations) encodes the bit depth:
+    // '1' for 8 bits (1 byte) per channel, '2' for 16 bits (2 bytes) per channel, '0' for custom bit depth
+
     c='1';
     for (int p = 0; p < numPlanes; p++) {if (images[0].max(p) != 255) c='2';}
     if (c=='2') {for (int p = 0; p < numPlanes; p++) {if (images[0].max(p) != 65535) c='0';}}
@@ -285,6 +358,8 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 
     Image& image = images[0];
     assert(image.cols() <= 0xFFFF);
+    // next 4 bytes (bytes 7-10 for still images, bytes 8-11 or 10-13 for animations) encode the width and height:
+    // first the width (as a big-endian unsigned 16 bit number), then the height
     io.fputc(image.cols() >> 8);
     io.fputc(image.cols() & 0xFF);
     assert(image.rows() <= 0xFFFF);
@@ -305,6 +380,13 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     if (c=='1') v_printf(3," %i, depth: 8 bit",numPlanes);
     if (c=='2') v_printf(3," %i, depth: 16 bit",numPlanes);
     if (numFrames>1) v_printf(3,", frames: %i",numFrames);
+    int alphazero=0;
+    if (numPlanes > 3) {
+        if (images[0].alpha_zero_special) alphazero=1;
+        if (alphazero) metaCoder.write_int(0,1,1);
+        else metaCoder.write_int(0,1,0);
+        if (!alphazero) v_printf(3, ", store RGB at A=0");
+    }
     v_printf(3,"\n");
     if (numFrames>1) {
         metaCoder.write_int(0, 100, 0); // repeats (0=infinite)
@@ -320,19 +402,20 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     int tcount=0;
     v_printf(4,"Transforms: ");
     transform_l=0;
+
     for (unsigned int i=0; i<transDesc.size(); i++) {
         Transform<IO> *trans = create_transform<IO>(transDesc[i]);
         if (transDesc[i] == "PLT" || transDesc[i] == "PLA") trans->configure(palette_size);
         if (transDesc[i] == "FRA") trans->configure(lookback);
         if (!trans->init(rangesList.back()) || 
             (!trans->process(rangesList.back(), images)
-              && !(acb==1 && transDesc[i] == "ACB" && printf(", forced_") && (tcount=0)==0))) {
+              && !(acb==1 && transDesc[i] == "ACB" && (v_printf(4,", forced_"), (tcount=0), true) ))) {
             //e_printf( "Transform '%s' failed\n", transDesc[i].c_str());
         } else {
             if (tcount++ > 0) v_printf(4,", ");
             v_printf(4,"%s", transDesc[i].c_str());
             fflush(stdout);
-            rac.write(true);
+            rac.write_bit(true);
             write_name(rac, transDesc[i]);
             trans->save(rangesList.back(), rac);
             fflush(stdout);
@@ -342,7 +425,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
         delete trans;
     }
     if (tcount==0) v_printf(4,"none\n"); else v_printf(4,"\n");
-    rac.write(false);
+    rac.write_bit(false);
     const ColorRanges* ranges = rangesList.back();
     grey.clear();
     for (int p = 0; p < ranges->numPlanes(); p++) grey.push_back((ranges->min(p)+ranges->max(p))/2);
@@ -364,74 +447,31 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 #endif
     if (mbits > bits) { e_printf("OOPS: this FLIF only supports 8-bit RGBA (not compiled with SUPPORT_HDR)\n"); return false;}
 
-    pixels_todo = (int64_t)image.rows()*image.cols()*ranges->numPlanes()*(learn_repeats+1);
-    pixels_done = 0;
-
-    // two passes
-    std::vector<Tree> forest(ranges->numPlanes(), Tree());
-    RacDummy dummy;
-
-    if (ranges->numPlanes() > 3 && ranges->min(3) <= 0) {
+    if (alphazero && ranges->numPlanes() > 3 && ranges->min(3) <= 0) {
       v_printf(4,"Replacing fully transparent pixels with predicted pixel values at the other planes\n");
       switch(encoding) {
         case flifEncoding::nonInterlaced: flif_encode_scanlines_interpol_zero_alpha(images, ranges); break;
         case flifEncoding::interlaced: flif_encode_FLIF2_interpol_zero_alpha(images, ranges, image.zooms(), 0); break;
       }
     }
-
+    for (int p = 0; p < ranges->numPlanes(); p++) {
+        if (ranges->min(p) >= ranges->max(p)) {
+            v_printf(4,"Constant plane %i at color value %i\n",p,ranges->min(p));
+            pixels_todo -= (int64_t)image.rows()*image.cols()*(learn_repeats+1);
+            for (int fr = 0; fr < numFrames; fr++)
+                images[fr].make_constant_plane(p,ranges->min(p));
+        }
+    }
     // not computing checksum until after transformations and potential zero-alpha changes
     uint32_t checksum = image.checksum();
-    long fs = io.ftell();
 
-    int roughZL = 0;
-    if (encoding == flifEncoding::interlaced) {
-      roughZL = image.zooms() - NB_NOLEARN_ZOOMS-1;
-      if (roughZL < 0) roughZL = 0;
-      //v_printf(2,"Encoding rough data\n");
-      if (bits==10) flif_encode_FLIF2_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, 10> >(rac, images, ranges, forest, image.zooms(), roughZL+1, 1, divisor, min_size, split_threshold);
-#ifdef SUPPORT_HDR
-      else flif_encode_FLIF2_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, 18> >(rac, images, ranges, forest, image.zooms(), roughZL+1, 1, divisor, min_size, split_threshold);
-#endif
-    }
 
-    //v_printf(2,"Encoding data (pass 1)\n");
-    if (learn_repeats>1) v_printf(3,"Learning a MANIAC tree. Iterating %i times.\n",learn_repeats);
-    switch(encoding) {
-        case flifEncoding::nonInterlaced:
-           if (bits==10) flif_encode_scanlines_pass<RacDummy, PropertySymbolCoder<FLIFBitChancePass1, RacDummy, 10> >(dummy, images, ranges, forest, learn_repeats, divisor, min_size, split_threshold);
+    if (bits ==10) {
+      flif_encode_main<10>(rac, io, images, encoding, learn_repeats, ranges, divisor, min_size, split_threshold);
 #ifdef SUPPORT_HDR
-           else flif_encode_scanlines_pass<RacDummy, PropertySymbolCoder<FLIFBitChancePass1, RacDummy, 18> >(dummy, images, ranges, forest, learn_repeats, divisor, min_size, split_threshold);
+    } else {
+      flif_encode_main<18>(rac, io, images, encoding, learn_repeats, ranges, divisor, min_size, split_threshold);
 #endif
-           break;
-        case flifEncoding::interlaced:
-           if (bits==10) flif_encode_FLIF2_pass<RacDummy, PropertySymbolCoder<FLIFBitChancePass1, RacDummy, 10> >(dummy, images, ranges, forest, roughZL, 0, learn_repeats, divisor, min_size, split_threshold);
-#ifdef SUPPORT_HDR
-           else flif_encode_FLIF2_pass<RacDummy, PropertySymbolCoder<FLIFBitChancePass1, RacDummy, 18> >(dummy, images, ranges, forest, roughZL, 0, learn_repeats, divisor, min_size, split_threshold);
-#endif
-           break;
-    }
-    v_printf(3,"\rHeader: %li bytes.", fs);
-    if (encoding==flifEncoding::interlaced) v_printf(3," Rough data: %li bytes.", io.ftell()-fs);
-    fflush(stdout);
-
-    //v_printf(2,"Encoding tree\n");
-    fs = io.ftell();
-    flif_encode_tree<FLIFBitChanceTree, RacOut<IO>>(rac, ranges, forest, encoding);
-    v_printf(3," MANIAC tree: %li bytes.\n", io.ftell()-fs);
-    //v_printf(2,"Encoding data (pass 2)\n");
-    switch(encoding) {
-        case flifEncoding::nonInterlaced:
-           if (bits==10) flif_encode_scanlines_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, 10> >(rac, images, ranges, forest, 1);
-#ifdef SUPPORT_HDR
-           else flif_encode_scanlines_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, 18> >(rac, images, ranges, forest, 1);
-#endif
-           break;
-        case flifEncoding::interlaced:
-           if (bits==10) flif_encode_FLIF2_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, 10> >(rac, images, ranges, forest, roughZL, 0, 1);
-#ifdef SUPPORT_HDR
-           else flif_encode_FLIF2_pass<RacOut<IO>, FinalPropertySymbolCoder<FLIFBitChancePass2, RacOut<IO>, 18> >(rac, images, ranges, forest, roughZL, 0, 1);
-#endif
-           break;
     }
 
     //v_printf(2,"Writing checksum: %X\n", checksum);

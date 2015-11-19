@@ -1,11 +1,5 @@
 #pragma once
 
-#ifdef STATS
-#include <stdio.h>
-#endif
-
-#include <stdlib.h>
-
 #include <vector>
 #include <assert.h>
 #include "util.hpp"
@@ -30,10 +24,10 @@ public:
         // split in [0..med] [med+1..max]
         int med = max/2;
         if (val > med) {
-            rac.write(med+1, max+1, true);
+            rac.write_fractional(med+1, max+1, true);
             write_int(med+1, max, val);
         } else {
-            rac.write(med+1, max+1, false);
+            rac.write_fractional(med+1, max+1, false);
             write_int(0, med, val);
         }
         return;
@@ -48,7 +42,7 @@ public:
 
         // split in [0..med] [med+1..max]
         int med = max/2;
-        bool bit = rac.read(med+1, max+1);
+        bool bit = rac.read_fractional(med+1, max+1);
         if (bit) {
             return read_int(min+med+1, min+max);
         } else {
@@ -72,15 +66,27 @@ static const uint16_t MANT_CHANCES[] = {1800, 1800, 1800, 1700, 1600, 1200, 1000
 static const uint16_t ZERO_CHANCE = 1500;
 static const uint16_t SIGN_CHANCE = 2048;
 
+#ifdef STATS
+struct SymbolChanceStats
+{
+    BitChanceStats stats_zero;
+    BitChanceStats stats_sign;
+    BitChanceStats stats_exp[31];
+    BitChanceStats stats_mant[32];
+
+    std::string format() const;
+    ~SymbolChanceStats();
+};
+
+extern SymbolChanceStats global_symbol_stats;
+#endif
+
 template <typename BitChance, int bits> class SymbolChance
 {
     BitChance bit_zero;
     BitChance bit_sign;
-//    std::vector<BitChance> bit_exp;
-//    std::vector<BitChance> bit_mant;
     BitChance bit_exp[bits-1];
     BitChance bit_mant[bits];
-
 
 public:
 
@@ -117,44 +123,33 @@ public:
         }
     }
     SymbolChance() { // : bit_exp(bitsin-1), bit_mant(bitsin) {
-        bitZero().set(ZERO_CHANCE);
-        bitSign().set(SIGN_CHANCE);
+        bitZero().set_12bit(ZERO_CHANCE);
+        bitSign().set_12bit(SIGN_CHANCE);
 //        printf("bits: %i\n",bits);
         for (int i=0; i<bits-1; i++) {
-            bitExp(i).set(EXP_CHANCES[i]);
+            bitExp(i).set_12bit(EXP_CHANCES[i]);
         }
         for (int i=0; i<bits; i++) {
-            bitMant(i).set(MANT_CHANCES[i]);
+            bitMant(i).set_12bit(MANT_CHANCES[i]);
         }
     }
-
 
     int scale() const {
         return bitZero().scale();
     }
 
 #ifdef STATS
-        // todo: fix this
-    void dist(std::vector<double> &ret) const {
-        for (int i=0; i<2*bits-1; i++) {
-            chances[i].dist(ret);
+    ~SymbolChance() {
+        global_symbol_stats.stats_zero += bit_zero.stats();
+        global_symbol_stats.stats_sign += bit_sign.stats();
+        for (int i = 0; i < bits - 1 && i < 31; i++) {
+            global_symbol_stats.stats_exp[i] += bit_exp[i].stats();
         }
-    }
-
-    void info_symbol(int n) const {
-        // TODO: move implementation to separate source file to have a chance to use
-        //       `using namespace util` without consequences
-        maniac::util::indent(n); printf("ZERO:   "); bitZero().info_bitchance();
-        maniac::util::indent(n); printf("SIGN:   "); bitSign().info_bitchance();
-        for (int i=0; i<bits-1; i++) {
-            maniac::util::indent(n); printf("EXP % 2i: ", i); bitExp(i).info_bitchance();
-        }
-        for (int i=0; i<bits; i++) {
-            maniac::util::indent(n); printf("MNT % 2i: ", i); bitMant(i).info_bitchance();
+        for (int i = 0; i < bits && i < 32; i++) {
+            global_symbol_stats.stats_mant[i] += bit_mant[i].stats();
         }
     }
 #endif
-
 };
 
 template <typename SymbolCoder> int reader(SymbolCoder& coder, int bits)
@@ -342,15 +337,15 @@ public:
     SimpleSymbolBitCoder(const Table &tableIn, SymbolChance<BitChance,bits> &ctxIn, RAC &racIn) : table(tableIn), ctx(ctxIn), rac(racIn) {}
 
     void write(bool bit, SymbolChanceBitType typ, int i = 0) {
-        BitChance& bch = ctx.bit(typ,i);
-        rac.write(bch.get(), bit);
+        BitChance& bch = ctx.bit(typ, i);
+        rac.write_12bit_chance(bch.get_12bit(), bit);
         bch.put(bit, table);
 //    e_printf("bit %s%i = %s\n", SymbolChanceBitName[typ], i, bit ? "true" : "false");
     }
 
     bool read(SymbolChanceBitType typ, int i = 0) {
-        BitChance& bch = ctx.bit(typ,i);
-        bool bit = rac.read(bch.get());
+        BitChance& bch = ctx.bit(typ, i);
+        bool bit = rac.read_12bit_chance(bch.get_12bit());
         bch.put(bit, table);
 //    e_printf("bit %s%i = %s\n", SymbolChanceBitName[typ], i, bit ? "true" : "false");
         return bit;
@@ -365,33 +360,20 @@ private:
     SymbolChance<BitChance,bits> ctx;
     const Table table;
     RAC &rac;
-#ifdef STATS
-    uint64_t symbols;
-#endif
 
 public:
     SimpleSymbolCoder(RAC& racIn) : rac(racIn) {
-#ifdef STATS
-        symbols = 0;
-#endif
     }
 
 #ifdef HAS_ENCODER
     void write_int(int min, int max, int value) {
         SimpleSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, ctx, rac);
         writer<bits, SimpleSymbolBitCoder<BitChance, RAC, bits> >(bitCoder, min, max, value);
-
-#ifdef STATS
-        symbols++;
-#endif
     }
 #endif
 
     int read_int(int min, int max) {
         SimpleSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, ctx, rac);
-#ifdef STATS
-        symbols++;
-#endif
         return reader<bits, SimpleSymbolBitCoder<BitChance, RAC, bits>>(bitCoder, min, max);
     }
 
@@ -400,25 +382,12 @@ public:
         assert (nbits <= bits);
         SimpleSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, ctx, rac);
         writer(bitCoder, nbits, value);
-#ifdef STATS
-        symbols++;
-#endif
     }
 #endif
 
     int read_int(int nbits) {
         assert (nbits <= bits);
         SimpleSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, ctx, rac);
-#ifdef STATS
-        symbols++;
-#endif
         return reader(bitCoder, nbits);
     }
-
-#ifdef STATS
-    void info(int n) const {
-        maniac::util::indent(n); printf("Total integers: %llu\n", (unsigned long long)symbols);
-        ctx.info(n);
-    }
-#endif
 };

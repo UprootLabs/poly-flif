@@ -3,11 +3,8 @@
 #include <vector>
 #include <math.h>
 #include <stdint.h>
-
-#ifdef STATS
-#include <stdlib.h>
-#include <stdio.h>
-#endif
+#include <string>
+#include <sstream>
 
 struct Log4kTable {
     uint16_t data[4097];
@@ -18,49 +15,12 @@ struct Log4kTable {
 
 extern const Log4kTable log4k;
 
-class StaticBitChanceTable
-{
-public:
-    StaticBitChanceTable() {};
-};
-
-class StaticBitChance
-{
-protected:
-    uint16_t chance; // stored as a 16-bit number
-
-public:
-    typedef StaticBitChanceTable Table;
-
-    StaticBitChance(int chanceIn = 0x800) {
-        chance = chanceIn;
-    }
-
-    uint16_t inline get() const {
-        return chance * 16; // return 16-bit number
-    }
-
-    void set(uint16_t chanceIn) {
-        chance = chanceIn;
-    }
-
-    void inline put(bool, const Table &) {}
-
-    void estim(bool bit, uint64_t &total) const {
-        total += log4k.data[bit ? chance : 4096-chance];
-    }
-
-    int scale() const {
-        return log4k.scale;
-    }
-};
-
 void extern build_table(uint16_t *zero_state, uint16_t *one_state, size_t size, int factor, unsigned int max_p);
 
 class SimpleBitChanceTable
 {
 public:
-    uint16_t next[2][4096];
+    uint16_t next[2][4096]; // stored as 12-bit numbers
 
     void init(int cut, int alpha) {
         build_table(next[0], next[1], 4096, alpha, 4096-cut);
@@ -71,25 +31,62 @@ public:
     }
 };
 
+#ifdef STATS
+struct BitChanceStats
+{
+    uint64_t total;
+    uint64_t ones;
+
+    BitChanceStats() : total(0), ones(0) {}
+
+    void add(bool bit) {
+        total++;
+        ones += bit;
+    }
+
+    BitChanceStats& operator+=(const BitChanceStats& stats) {
+        total += stats.total;
+        ones += stats.ones;
+        return *this;
+    }
+
+    std::string format() const {
+        if (total == 0) {
+            return "0*0";
+        } else {
+            std::stringstream ss;
+            ss << (int)((double)ones / total * 4096.0 + 0.5) << '*' << total;
+            return ss.str();
+        }
+    }
+};
+#endif
+
 class SimpleBitChance
 {
 protected:
     uint16_t chance; // stored as a 12-bit number
+#ifdef STATS
+    BitChanceStats stats_;
+#endif
 
 public:
     typedef SimpleBitChanceTable Table;
 
-    SimpleBitChance(int chanceIn = 0x800) {
-        chance = chanceIn;
+    SimpleBitChance() {
+        chance = 0x800;
     }
 
-    uint16_t inline get() const {
-        return chance*16; // return 16-bit number
+    uint16_t inline get_12bit() const {
+        return chance;
     }
-    void set(uint16_t chance) {
+    void set_12bit(uint16_t chance) {
         this->chance = chance;
     }
     void inline put(bool bit, const Table &table) {
+#ifdef STATS
+        stats_.add(bit);
+#endif
         chance = table.next[bit][chance];
     }
 
@@ -102,10 +99,8 @@ public:
     }
 
 #ifdef STATS
-    void dist(std::vector<double> &dist) const {}
-
-    void info_bitchance() const {
-        printf("\n");
+    const BitChanceStats& stats() const {
+        return stats_;
     }
 #endif
 };
@@ -128,7 +123,7 @@ public:
     MultiscaleBitChanceTable(int cut = 8) {
         for (int i= 0; i<N; i++) {
             subTable[i].init(cut, MULTISCALE_ALPHAS[i]);
-          }
+        }
     }
 };
 
@@ -139,41 +134,31 @@ protected:
     uint32_t quality[N];
     uint8_t best;
 #ifdef STATS
-    uint64_t virtSize[N];
-    uint64_t realSize;
-    uint64_t symbols;
+    BitChanceStats stats_;
 #endif
 
 public:
     typedef MultiscaleBitChanceTable<N,BitChance> Table;
 
-    MultiscaleBitChance(int chanceIn = 0x800) {
-        set(chanceIn);
+    MultiscaleBitChance() {
+        set_12bit(0x800);
     }
 
-    void set(uint16_t chanceIn) {
+    void set_12bit(uint16_t chanceIn) {
         for (int i = 0; i<N; i++) {
             chances[i].set(chanceIn);
             quality[i] = 0;
-#ifdef STATS
-            virtSize[i] = 0;
-#endif
         }
         best = 0;
-#ifdef STATS
-        symbols = 0;
-        realSize = 0;
-#endif
     }
 
-    uint16_t get() const {
+    uint16_t get_12bit() const {
         return chances[best].get();
     }
 
     void put(bool bit, const Table &table) {
 #ifdef STATS
-        int oldBest = best;
-        symbols++;
+        stats_.add(bit);
 #endif
 /*        if (bit == 0)  {
           for (int i=0; i<N; i++) {
@@ -206,10 +191,6 @@ public:
 //            quality[i] = (oqual*127 + sbits*2049 + 64)>>7;
 //            if (quality[i] < quality[best]) best=i;
             chances[i].put(bit, table.subTable[i]);
-#ifdef STATS
-            virtSize[i] += sbits;
-            if (i == oldBest) realSize += sbits;
-#endif
         }
 
         for (int i=0; i<N; i++) if (quality[i] < quality[best]) best=i;
@@ -224,21 +205,8 @@ public:
     }
 
 #ifdef STATS
-    void dist(std::vector<double> &ret) const {
-        if (ret.size() != N+1)
-            ret = std::vector<double>(N+1, 0.0);
-
-        ret[0] += (double)realSize/scale();
-        for (int i=0; i<N; i++)
-            ret[i+1] += (double)virtSize[i]/scale();
-    }
-
-    void info_bitchance() const {
-        printf("%llu bits: ", (unsigned long long)symbols);
-        printf("%.5f [", (double)symbols*scale()/realSize);
-        for (int i=0; i<N; i++)
-            printf("%.4f ", (double)symbols*scale()/virtSize[i]);
-        printf("]\n");
+    const BitChanceStats& stats() const {
+        return stats_;
     }
 #endif
 };

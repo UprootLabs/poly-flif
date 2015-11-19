@@ -248,9 +248,9 @@ class ColorRangesCB : public ColorRanges
 {
 protected:
     const ColorRanges *ranges;
-    ColorBuckets *buckets;
+    const ColorBuckets *buckets;
+    const ColorBucket& bucket(const int p, const prevPlanes &pp) const { return buckets->findBucket(p,pp); }
 public:
-    ColorBucket& bucket(const int p, const prevPlanes &pp) const { return buckets->findBucket(p,pp); }
     ColorRangesCB(const ColorRanges *rangesIn, ColorBuckets *cbIn) :  ranges(rangesIn), buckets(cbIn) {} //print();}
     ~ColorRangesCB() {
         delete buckets;
@@ -272,9 +272,10 @@ public:
         maxv=b.max;
         if (b.min > b.max) { assert(false); e_printf("Corruption detected!\n"); exit(4); } // this should only happen on malicious input files
     }
-    void print() {
+/*    void print() {
         buckets->print();
     }
+*/
 };
 
 
@@ -283,7 +284,7 @@ class TransformCB : public Transform<IO> {
 protected:
     ColorBuckets *cb;
     bool really_used;
-    
+
     ~TransformCB() {if (!really_used) delete cb;}
     bool undo_redo_during_decode() { return false; }
 
@@ -322,12 +323,13 @@ protected:
         cb = NULL;
         really_used = false;
         if(srcRanges->numPlanes() < 3) return false;
-//        if (srcRanges->min(1) == srcRanges->max(1) && srcRanges->min(2) == srcRanges->max(2)) return false; // monochrome image
+        if (srcRanges->min(1) == srcRanges->max(1) && srcRanges->min(2) == srcRanges->max(2)) return false; // monochrome image
         if (srcRanges->min(0) == 0 && srcRanges->max(0) == 0 && srcRanges->min(2) == 0 && srcRanges->max(2) == 0) return false; // probably palette image
         if (srcRanges->min(0) == srcRanges->max(0) &&
             srcRanges->min(1) == srcRanges->max(1) &&
             srcRanges->min(2) == srcRanges->max(2)) return false; // only alpha plane contains information
-        if (srcRanges->max(0) > 255) return false; // do not attempt this on high bit depth images (TODO: generalize color bucket quantization!)
+//        if (srcRanges->max(0) > 255) return false; // do not attempt this on high bit depth images (TODO: generalize color bucket quantization!)
+        if (srcRanges->max(0) > 4096) return false; // do not attempt this on high bit depth images (TODO: generalize color bucket quantization!)
         cb = new ColorBuckets(srcRanges);
         return true;
     }
@@ -436,15 +438,9 @@ protected:
                         return;
                 }
         }
-//        SimpleBitCoder<FLIFBitChanceMeta, RacOut> bcoder(rac);
-//        if (b.min > b.max) printf("SHOULD NOT HAPPEN!\n");
-
         ColorVal smin,smax;
         minmax(srcRanges,plane,pixelL,pixelU,smin,smax);
         if (smin==smax) { return;}
-
-//        b.printshort();
-//        b.print();
 
         if (b.min > b.max) {
                 coder.write_int(0, 1, 0);  // empty bucket
@@ -518,7 +514,7 @@ protected:
                     ColorVal v = image(p,r,c);
                     pixel[p] = v;
                   }
-                  if (p>3 && pixel[3]==0) { cb->findBucket(3, pixel).addColor(0,max_per_colorbucket[3]); continue;}
+                  if (image.alpha_zero_special && p>3 && pixel[3]==0) { cb->findBucket(3, pixel).addColor(0,max_per_colorbucket[3]); continue;}
                   cb->addColor(pixel);
                 }
             }
@@ -535,7 +531,7 @@ protected:
 
             int64_t total_pixels = (int64_t) images.size() * images[0].rows() * images[0].cols();
             v_printf(7,", [D=%i,C=%i,P=%i]",totaldiscretecolors,totalcontinuousbuckets,(int) (total_pixels/100));
-            if (totaldiscretecolors < total_pixels/100 && totalcontinuousbuckets < total_pixels/50) return true;
+            if (totaldiscretecolors < total_pixels/200 && totalcontinuousbuckets < total_pixels/50) return true;
 
             // simplify buckets
             for (int factor = 95; factor >= 35; factor -= 10) {
