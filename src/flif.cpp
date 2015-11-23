@@ -96,6 +96,7 @@ void show_help() {
     v_printf(2,"   -p, --palette=N          max palette size for PLT and PLA; default: -p1024\n");
     v_printf(2,"   -C, --no-plc             disable PLC transform (no channel compactification)\n");
     v_printf(2,"   -R, --rgb                disable YIQ transform (use plain RGB instead)\n");
+    v_printf(2,"   -F, --no-frs             disable FRS transform (no frame shaping)\n");
     v_printf(2,"   -l, --lookback=N         max lookback between animation frames (for FRA); default: -l1\n");
     v_printf(2,"   -r, --repeats=N          MANIAC learning iterations; default: -r%i\n",TREE_LEARN_REPEATS);
     v_printf(2,"   -S, --split-threshold=N  MANIAC tree growth criterion, in bits saved; default: -S%i\n",CONTEXT_TREE_SPLIT_THRESHOLD/5461);
@@ -103,6 +104,7 @@ void show_help() {
     v_printf(2,"   -M, --min-size=N         MANIAC post-pruning threshold; default: -M%i\n",CONTEXT_TREE_MIN_SUBTREE_SIZE);
 #endif
     v_printf(1,"Decode options:\n");
+    v_printf(1,"   -I, --identify           do not decode, just identify the input FLIF file\n");
     v_printf(1,"   -q, --quality=N          lossy decode quality percentage; default -q100\n");
     v_printf(1,"   -s, --scale=N            lossy downscaled image at scale 1:N (2,4,8,16,32); default -s1\n");
 }
@@ -126,12 +128,11 @@ bool file_is_flif(const char * filename){
 
 
 
-
 void show_banner() {
-      v_printf(3," ______ __  (())______");
-    v_printf(3,"\n \\___  |  | |  |  ___/   ");v_printf(2,"FLIF 0.1.7 [18 November 2015]");
-    v_printf(3,"\n  \\__  |  |_|__|  __/    Free Lossless Image Format");
-    v_printf(3,"\n    \\__|_______|__/    ");v_printf(2,"  (c) 2010-2015 J.Sneyers & P.Wuille, GNU GPL v3+\n");
+      v_printf(3,"  ____ _[_]____");
+    v_printf(3,"\n [__  | | |  __]   ");v_printf(2,"FLIF 0.1.7 [20 November 2015]");
+    v_printf(3,"\n  |_  | |_|  _|    Free Lossless Image Format");
+    v_printf(3,"\n    ]_|___|_[    ");v_printf(2,"  (c) 2010-2015 J.Sneyers & P.Wuille, GNU GPL v3+\n");
     v_printf(3,"\n");
 }
 
@@ -182,7 +183,7 @@ bool encode_load_input_images(int argc, char **argv, Images &images) {
     v_printf(2,"\n");
     return true;
 }
-bool encode_flif(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int yiq=1, int plc=1) {
+bool encode_flif(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int yiq=1, int plc=1, int frs=1) {
     bool flat=true;
     for (Image &image : images) if (image.uses_alpha()) flat=false;
     if (flat && images[0].numPlanes() == 4) {
@@ -224,8 +225,8 @@ bool encode_flif(int argc, char **argv, Images &images, int palette_size, int ac
     }
     if (images.size() > 1) {
         desc.push_back("DUP");  // find duplicate frames
-        desc.push_back("FRS");  // get the shapes of the frames
-        if (lookback != 0) desc.push_back("FRA");  // make a "deep" alpha channel (negative values are transparent to some previous frame)
+        if (frs) desc.push_back("FRS");  // get the shapes of the frames
+        if (lookback) desc.push_back("FRA");  // make a "deep" alpha channel (negative values are transparent to some previous frame)
     }
     if (learn_repeats < 0) {
         // no number of repeats specified, pick a number heuristically
@@ -240,13 +241,13 @@ bool encode_flif(int argc, char **argv, Images &images, int palette_size, int ac
     return flif_encode(fio, images, desc, method.encoding, learn_repeats, acb, frame_delay, palette_size, lookback, divisor, min_size, split_threshold);
 }
 
-bool handle_encode(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int yiq=1, int plc=1, bool alpha_zero_special=true) {
+bool handle_encode(int argc, char **argv, Images &images, int palette_size, int acb, flifEncodingOptional method, int lookback, int learn_repeats, int frame_delay, int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int yiq=1, int plc=1, bool alpha_zero_special=true, int frs=1) {
     if (!encode_load_input_images(argc,argv,images)) return false;
     for (Image& i : images) i.frame_delay = frame_delay;
     if (!alpha_zero_special) for (Image& i : images) i.alpha_zero_special = false;
     argv += (argc-1);
     argc = 1;
-    return encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc);
+    return encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc, frs);
 }
 #endif
 
@@ -257,13 +258,23 @@ bool decode_flif(char **argv, Images &images, int quality, int scale) {
     return flif_decode(fio, images, quality, scale);
 }
 
-int handle_decode(char **argv, Images &images, int quality, int scale) {
+int handle_decode(int argc, char **argv, Images &images, int quality, int scale) {
+    if (scale < 0) {
+        // just identify the file(s), don't actually decode
+        while (argc>0) {
+            decode_flif(argv, images, quality, scale);
+            argv++; argc--;
+        }
+        return 0;
+    }
     char *ext = strrchr(argv[1],'.');
     if (!check_compatible_extension(ext)) {
         e_printf("Error: expected \".png\", \".pnm\" or \".pam\" file name extension for output file\n");
         return 1;
     }
-    if (!decode_flif(argv, images, quality, scale)) {e_printf("Error: could not decode FLIF file\n"); return 3; }
+    if (!decode_flif(argv, images, quality, scale)) {
+        e_printf("Error: could not decode FLIF file\n"); return 3;
+    }
     if (scale>1)
         v_printf(3,"Downscaling output: %ux%u -> %ux%u\n",images[0].cols(),images[0].rows(),images[0].cols()/scale,images[0].rows()/scale);
     if (images.size() == 1) {
@@ -299,6 +310,7 @@ int main(int argc, char **argv)
     int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD;
     int yiq = 1;
     int plc = 1;
+    int frs = 1;
     bool alpha_zero_special = true;
 #else
     int mode = 1;
@@ -316,6 +328,7 @@ int main(int argc, char **argv)
         {"verbose", 0, NULL, 'v'},
         {"quality", 1, NULL, 'q'},
         {"scale", 1, NULL, 's'},
+        {"identify", 1, NULL, 'I'},
 #ifdef HAS_ENCODER
         {"encode", 0, NULL, 'e'},
         {"transcode", 0, NULL, 't'},
@@ -332,15 +345,16 @@ int main(int argc, char **argv)
         {"split-threshold", 1, NULL, 'S'},
         {"rgb", 0, NULL, 'R'},
         {"no-plc", 0, NULL, 'C'},
+        {"no-frs", 0, NULL, 'F'},
         {"keep-alpha-zero", 0, NULL, 'A'},
 #endif
         {0, 0, 0, 0}
     };
     int i,c;
 #ifdef HAS_ENCODER
-    while ((c = getopt_long (argc, argv, "hedtvinabq:s:p:r:f:l:D:M:S:RCA", optlist, &i)) != -1) {
+    while ((c = getopt_long (argc, argv, "hedtvIinabq:s:p:r:f:l:D:M:S:RCFA", optlist, &i)) != -1) {
 #else
-    while ((c = getopt_long (argc, argv, "hdvq:s:", optlist, &i)) != -1) {
+    while ((c = getopt_long (argc, argv, "hdvIq:s:", optlist, &i)) != -1) {
 #endif
         switch (c) {
         case 'd': mode=1; break;
@@ -351,6 +365,7 @@ int main(int argc, char **argv)
         case 's': scale=atoi(optarg);
                   if (scale < 1 || scale > 128) {e_printf("Not a sensible number for option -s\n"); return 1; }
                   break;
+        case 'I': scale = -1; break;
 #ifdef HAS_ENCODER
         case 'e': mode=0; break;
         case 't': mode=2; break;
@@ -383,6 +398,7 @@ int main(int argc, char **argv)
                   break;
         case 'R': yiq=0; break;
         case 'C': plc=0; break;
+        case 'F': frs=0; break;
         case 'A': alpha_zero_special=false; break;
 #endif
         case 'h': showhelp=true; break;
@@ -399,12 +415,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (argc == 1) {
+    if (argc == 1 && scale != -1) {
         show_help();
         e_printf("\nOutput file missing.\n");
         return 1;
     }
-
+    if (scale == -1) mode = 1;
     if (file_exists(argv[0])) {
         char *f = strrchr(argv[0],'/');
         char *ext = f ? strrchr(f,'.') : strrchr(argv[0],'.');
@@ -436,23 +452,23 @@ int main(int argc, char **argv)
         e_printf("Input file does not exist: %s\n",argv[0]);
         return 1;
     }
-    if (mode > 0 && argc > 2) {
+    if (mode > 0 && argc > 2 && scale != -1) {
         e_printf("Too many arguments.\n");
         return 1;
     }
 
 #ifdef HAS_ENCODER
     if (mode == 0) {
-        if (!handle_encode(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc, alpha_zero_special)) return 2;
+        if (!handle_encode(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc, alpha_zero_special, frs)) return 2;
     } else if (mode == 1) {
 #endif
-        return handle_decode(argv, images, quality, scale);
+        return handle_decode(argc, argv, images, quality, scale);
 #ifdef HAS_ENCODER
     } else if (mode == 2) {
         if (scale > 1) {e_printf("Not yet supported: transcoding downscaled image; use decode + encode!\n");}
         if (!decode_flif(argv, images, quality, scale)) return 2;
         argc--; argv++;
-        if (!encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc)) return 2;
+        if (!encode_flif(argc, argv, images, palette_size, acb, method, lookback, learn_repeats, frame_delay, divisor, min_size, split_threshold, yiq, plc, frs)) return 2;
     }
 #endif
     return 0;
