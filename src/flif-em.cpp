@@ -125,8 +125,6 @@ int mainy(int truncate, const int bufId, const char* bufName) {
   int quality = 100;
   int scale = 1;
 
-  // FILE *file = fopen(fname, "rb");
-
   BufferIO bufio(bufId, bufName, truncate);
   if (!flif_decode(bufio, images, quality, scale)) return 3;
   if (images.size() > 1) {
