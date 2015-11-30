@@ -4,10 +4,21 @@
 /em-out/flif.js
 /em-out/assets
 
+# binarys
+src/flif
+src/flif.asan
+src/flif.dbg
+src/flif.prof
+src/flif.stats
+src/libflif.dbg.so
+src/libflif.so
+src/test-interface
+src/viewflif
+
+*.png
 *.xcworkspace/*
 *.xcworkspace
 *.xcodeproj
-flif
 
 flif.osx
 

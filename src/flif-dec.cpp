@@ -54,12 +54,16 @@ template<typename IO, typename Rac, typename Coder> void flif_decode_scanlines_i
            }
          }
     }
+
+    const std::vector<ColorVal> greys = computeGreys(ranges);
+
     for (int k=0,i=0; k < 5; k++) {
         int p=PLANE_ORDERING[k];
         if (p>=nump) continue;
         i++;
         Properties properties((nump>3?NB_PROPERTIES_scanlinesA[p]:NB_PROPERTIES_scanlines[p]));
         if (ranges->min(p) < ranges->max(p)) {
+          const ColorVal minP = ranges->min(p);
           v_printf(2,"\r%i%% done [%i/%i] DEC[%ux%u]    ",(int)(100*pixels_done/pixels_todo),i,nump,images[0].cols(),images[0].rows());
           v_printf(4,"\n");
           pixels_done += images[0].cols()*images[0].rows();
@@ -70,20 +74,20 @@ template<typename IO, typename Rac, typename Coder> void flif_decode_scanlines_i
               if (image.seen_before >= 0) { for(uint32_t c=0; c<image.cols(); c++) image.set(p,r,c,images[image.seen_before](p,r,c)); continue; }
               if (fr>0) {
                 for (uint32_t c = 0; c < begin; c++)
-                   if (alphazero && p<3 && image(3,r,c) == 0) image.set(p,r,c,predict(image,p,r,c));
+                   if (alphazero && p<3 && image(3,r,c) == 0) image.set(p,r,c,predictScanlines(image,p,r,c, greys[p]));
                    else if (p !=4 ) image.set(p,r,c,images[fr-1](p,r,c));
               } else if (nump>3 && p<3) { begin=0; end=image.cols(); }
               for (uint32_t c = begin; c < end; c++) {
-                if (alphazero && p<3 && image(3,r,c) == 0) {image.set(p,r,c,predict(image,p,r,c)); continue;}
+                if (alphazero && p<3 && image(3,r,c) == 0) {image.set(p,r,c,predictScanlines(image,p,r,c, greys[p])); continue;}
                 if (FRA && p<4 && image(4,r,c) > 0) {assert(fr >= image(4,r,c)); image.set(p,r,c,images[fr-image(4,r,c)](p,r,c)); continue;}
-                ColorVal guess = predict_and_calcProps_scanlines(properties,ranges,image,p,r,c,min,max);
+                ColorVal guess = predict_and_calcProps_scanlines(properties,ranges,image,p,r,c,min,max, minP);
                 if (FRA && p==4 && max > fr) max = fr;
                 ColorVal curr = coders[p].read_int(properties, min - guess, max - guess) + guess;
                 image.set(p,r,c, curr);
               }
               if (fr>0) {
                 for (uint32_t c = end; c < image.cols(); c++)
-                   if (alphazero && p<3 && image(3,r,c) == 0) image.set(p,r,c,predict(image,p,r,c));
+                   if (alphazero && p<3 && image(3,r,c) == 0) image.set(p,r,c,predictScanlines(image,p,r,c, greys[p]));
                    else if (p !=4 ) image.set(p,r,c,images[fr-1](p,r,c));
               }
             }
@@ -507,8 +511,6 @@ bool flif_decode(IO& io, Images &images, int quality, int scale, uint32_t (*call
     }
     if (tcount==0) v_printf(4,"none\n"); else v_printf(4,"\n");
     const ColorRanges* ranges = rangesList.back();
-    grey.clear();
-    for (int p = 0; p < ranges->numPlanes(); p++) grey.push_back((ranges->min(p)+ranges->max(p))/2);
 
     pixels_todo = (int64_t)width*height*ranges->numPlanes()/scale/scale;
     pixels_done = 0;
@@ -551,14 +553,17 @@ bool flif_decode(IO& io, Images &images, int quality, int scale, uint32_t (*call
 
 
     if (quality==100 && scale==1) {
-      uint32_t checksum = images[0].checksum();
+      const uint32_t checksum = images[0].checksum();
       v_printf(8,"Computed checksum: %X\n", checksum);
       uint32_t checksum2 = metaCoder.read_int(0, 0xFFFF);
       checksum2 *= 0x10000;
       checksum2 += metaCoder.read_int(0, 0xFFFF);
       v_printf(8,"Read checksum: %X\n", checksum2);
-      if (checksum != checksum2) v_printf(1,"\nCORRUPTION DETECTED! (partial file?)\n\n");
-      else v_printf(2,"Image decoded, checksum verified.\n");
+      if (checksum != checksum2) {
+        v_printf(1,"\nCORRUPTION DETECTED: checksums don't match (computed: %x v/s read: %x)! (partial file?)\n\n", checksum, checksum2);
+      } else {
+        v_printf(2,"Image decoded, checksum verified.\n");
+      }
     } else {
       v_printf(2,"Not checking checksum, lossy partial decoding was chosen.\n");
     }

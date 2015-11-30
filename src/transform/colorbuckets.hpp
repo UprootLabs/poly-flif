@@ -34,7 +34,7 @@ public:
 
     ColorBucket() {
         min = 10000;  // +infinity
-        max = -1;  // -infinity    (set to empty interval to start with)
+        max = -10000; // -infinity    (set to empty interval to start with)
         discrete = true;
     }
     void addColor(const ColorVal c, const unsigned int max_per_bucket) {
@@ -360,7 +360,7 @@ protected:
         }
     }
 
-    ColorBucket load_bucket(SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 24> &coder, const ColorRanges *srcRanges, const int plane, const prevPlanes &pixelL, const prevPlanes &pixelU) {
+    const ColorBucket load_bucket(SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 24> &coder, const ColorRanges *srcRanges, const int plane, const prevPlanes &pixelL, const prevPlanes &pixelU) const {
         ColorBucket b;
         if (plane<3)
         for (int p=0; p<plane; p++) {
@@ -532,6 +532,7 @@ protected:
             int64_t total_pixels = (int64_t) images.size() * images[0].rows() * images[0].cols();
             v_printf(7,", [D=%i,C=%i,P=%i]",totaldiscretecolors,totalcontinuousbuckets,(int) (total_pixels/100));
             if (totaldiscretecolors < total_pixels/200 && totalcontinuousbuckets < total_pixels/50) return true;
+            if (totaldiscretecolors < total_pixels/40 && totalcontinuousbuckets < total_pixels/500) return true;
 
             // simplify buckets
             for (int factor = 95; factor >= 35; factor -= 10) {
