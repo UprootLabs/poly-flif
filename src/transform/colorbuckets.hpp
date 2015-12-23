@@ -1,3 +1,21 @@
+/*
+ FLIF - Free Lossless Image Format
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 
 #include <vector>
@@ -262,14 +280,14 @@ public:
         const ColorBucket& b = bucket(p,pp);
         minv=b.min;
         maxv=b.max;
-        if (b.min > b.max) { assert(false); e_printf("Corruption detected!\n"); exit(4); } // this should only happen on malicious input files
+        if (b.min > b.max) { e_printf("Corruption detected!\n"); minv=v=min(p); maxv=max(p); return; } // this should only happen on malicious input files
         v=b.snapColor(v);
     }
     void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const {
         const ColorBucket& b = bucket(p,pp);
         minv=b.min;
         maxv=b.max;
-        if (b.min > b.max) { assert(false); e_printf("Corruption detected!\n"); exit(4); } // this should only happen on malicious input files
+        if (b.min > b.max) { e_printf("Corruption detected!\n"); minv=min(p); maxv=max(p); } // this should only happen on malicious input files
     }
 /*    void print() {
         buckets->print();
@@ -289,15 +307,17 @@ protected:
 
     const ColorRanges* meta(Images&, const ColorRanges *srcRanges) {
 //        cb->print();
+        really_used = true;
+
         // in the I buckets, some discrete buckets may have become continuous to keep the colorbucket info small
         // this means some Q buckets are empty, which means that some values from the I buckets can be eliminated
-        really_used = true;
-        prevPlanes pixelL,pixelU;
-        pixelL.push_back(cb->min0);
-        pixelU.push_back(cb->min0+CB0b-1);
-        pixelL.push_back(cb->min1);
-        pixelU.push_back(cb->min1+CB1-1);
-        for (auto bv : cb->bucket2) {
+        if (srcRanges->min(2) < srcRanges->max(2)) {  // only do this if the Q buckets are actually in use
+          prevPlanes pixelL,pixelU;
+          pixelL.push_back(cb->min0);
+          pixelU.push_back(cb->min0+CB0b-1);
+          pixelL.push_back(cb->min1);
+          pixelU.push_back(cb->min1+CB1-1);
+          for (auto bv : cb->bucket2) {
                 pixelL[1] = cb->min1;
                 pixelU[1] = cb->min1+CB1-1;
                 for (auto b : bv) {
@@ -310,6 +330,7 @@ protected:
                         pixelL[1] += CB1; pixelU[1] += CB1;
                 }
                 pixelL[0] += CB0b; pixelU[0] += CB0b;
+          }
         }
         cb->bucket0.prepare_snapvalues();
         cb->bucket3.prepare_snapvalues();
@@ -328,7 +349,10 @@ protected:
             srcRanges->min(1) == srcRanges->max(1) &&
             srcRanges->min(2) == srcRanges->max(2)) return false; // only alpha plane contains information
 //        if (srcRanges->max(0) > 255) return false; // do not attempt this on high bit depth images (TODO: generalize color bucket quantization!)
-        if (srcRanges->max(0) > 4096) return false; // do not attempt this on high bit depth images (TODO: generalize color bucket quantization!)
+        if (srcRanges->max(0)-srcRanges->min(0) > 4096) return false; // do not attempt this on high bit depth images (TODO: generalize color bucket quantization!)
+        if (srcRanges->max(1)-srcRanges->min(1) > 4096) return false;
+        if (srcRanges->min(1) == srcRanges->max(1)) return false; // middle channel not used, buckets are not going to help
+//        if (srcRanges->min(2) == srcRanges->max(2)) return false;
         cb = new ColorBuckets(srcRanges);
         return true;
     }
@@ -359,7 +383,7 @@ protected:
         }
     }
 
-    const ColorBucket load_bucket(SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 24> &coder, const ColorRanges *srcRanges, const int plane, const prevPlanes &pixelL, const prevPlanes &pixelU) const {
+    const ColorBucket load_bucket(SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> &coder, const ColorRanges *srcRanges, const int plane, const prevPlanes &pixelL, const prevPlanes &pixelU) const {
         ColorBucket b;
         if (plane<3)
         for (int p=0; p<plane; p++) {
@@ -369,67 +393,57 @@ protected:
 
         ColorVal smin,smax;
         minmax(srcRanges,plane,pixelL,pixelU,smin,smax);
-        if (smin == smax) {b.min = b.max = smin; b.discrete=false; return b;}
 
         int exists = coder.read_int(0, 1);
         if (exists == 0) {
            return b; // empty bucket
         }
+        if (smin == smax) {b.min = b.max = smin; b.discrete=false; return b;}
         b.min = coder.read_int(smin, smax);
         b.max = coder.read_int(b.min, smax);
         if (b.min == b.max) { b.discrete=false; return b; }
         if (b.min + 1 == b.max) { b.discrete=false; return b; }
         b.discrete = coder.read_int(0,1);
         if (b.discrete) {
-           int nb = coder.read_int(2, max_per_colorbucket[plane]);
+           int nb = coder.read_int(2, std::min((int)max_per_colorbucket[plane],b.max-b.min));
            b.values.push_back(b.min);
            ColorVal v=b.min;
-/*           if (nb > 10) {
-             v++;
-             bcoder.set( 0x1000 * (nb-2) / (b.max-b.min-1) );
-             for (int p=1; p < nb - 1; p++) {
-               while (bcoder.read() == 0) { v++; }
-               b.values.push_back(v); v++;
-             }
-           } else */
              for (int p=1; p < nb-1; p++) {
-               b.values.push_back(coder.read_int(v+1, b.max-1));
-//               b.values.push_back(v+1+coder.read_int(0, b.max-v-2));
-//               printf("val %i\n",b.values[p]);
+               b.values.push_back(coder.read_int(v+1, b.max+1-nb+p));
                v = b.values[p];
              }
            if (b.min < b.max) b.values.push_back(b.max);
         }
-//        b.print();
         return b;
     }
     bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
-//        printf("Loading Color Buckets\n");
-        SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 24> coder(rac);
+        SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> coder(rac);
         prevPlanes pixelL, pixelU;
         cb->bucket0 = load_bucket(coder, srcRanges, 0, pixelL, pixelU);
         pixelL.push_back(cb->min0);
         pixelU.push_back(cb->min0+CB0a-1);
         for (ColorBucket& b : cb->bucket1) {b=load_bucket(coder, srcRanges, 1, pixelL, pixelU); pixelL[0] += CB0a; pixelU[0] += CB0a; }
-        pixelL[0] = cb->min0;
-        pixelU[0] = cb->min0+CB0b-1;
-        pixelL.push_back(cb->min1);
-        pixelU.push_back(cb->min1+CB1-1);
-        for (auto& bv : cb->bucket2) {
+        if (srcRanges->min(2) < srcRanges->max(2)) {
+          pixelL[0] = cb->min0;
+          pixelU[0] = cb->min0+CB0b-1;
+          pixelL.push_back(cb->min1);
+          pixelU.push_back(cb->min1+CB1-1);
+          for (auto& bv : cb->bucket2) {
                 pixelL[1] = cb->min1;
                 pixelU[1] = cb->min1+CB1-1;
                 for (ColorBucket& b : bv) {
                         b=load_bucket(coder, srcRanges, 2, pixelL, pixelU);
-                        pixelL[1] += CB1; pixelU[1] += CB1; 
+                        pixelL[1] += CB1; pixelU[1] += CB1;
                 }
-                pixelL[0] += CB0b; pixelU[0] += CB0b; 
+                pixelL[0] += CB0b; pixelU[0] += CB0b;
+          }
         }
         if (srcRanges->numPlanes() > 3) cb->bucket3 = load_bucket(coder, srcRanges, 3, pixelL, pixelU);
         return true;
     }
 
 #ifdef HAS_ENCODER
-    void save_bucket(const ColorBucket &b, SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 24> &coder, const ColorRanges *srcRanges, const int plane, const prevPlanes &pixelL, const prevPlanes &pixelU) const {
+    void save_bucket(const ColorBucket &b, SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> &coder, const ColorRanges *srcRanges, const int plane, const prevPlanes &pixelL, const prevPlanes &pixelU) const {
         if (plane<3)
         for (int p=0; p<plane; p++) {
                 if (!cb->exists(p,pixelL,pixelU)) {
@@ -439,12 +453,12 @@ protected:
         }
         ColorVal smin,smax;
         minmax(srcRanges,plane,pixelL,pixelU,smin,smax);
-        if (smin==smax) { return;}
 
         if (b.min > b.max) {
                 coder.write_int(0, 1, 0);  // empty bucket
                 return;
         } else coder.write_int(0, 1, 1);  // non-empty bucket
+        if (smin==smax) { return;}
 
 
         coder.write_int(smin, smax, b.min);
@@ -453,46 +467,40 @@ protected:
         if (b.min + 1  == b.max) return; // bucket contains two consecutive values
         coder.write_int(0, 1, b.discrete);
         if (b.discrete) {
-           coder.write_int(2, max_per_colorbucket[plane], b.values.size());
+           assert((int)b.values.size() < b.max-b.min+1); // no discrete buckets that are completely full
+           coder.write_int(2, std::min((int)max_per_colorbucket[plane],b.max-b.min), b.values.size());
            ColorVal v=b.min;
-/*           if (b.values.size() > 10) {
-             v++;
-             bcoder.set( 0x1000 * (b.values.size()-2) / (b.max-b.min-1) );
-             for (unsigned int p=1; p < b.values.size() - 1; p++) {
-               while (v<b.values[p]) { bcoder.write(0); v++; }
-               bcoder.write(1); v++;
-             }
-           } else   */
-             for (unsigned int p=1; p < b.values.size() - 1; p++) {
-               coder.write_int(v+1, b.max-1, b.values[p]);
-//               coder.write_int(0, b.max-v-2, b.values[p]-v-1);
+           int nb = b.values.size();
+           for (int p=1; p < nb - 1; p++) {
+               coder.write_int(v+1, b.max+1-nb+p, b.values[p]);
                v = b.values[p];
-             }
+           }
         }
     }
     void save(const ColorRanges *srcRanges, RacOut<IO> &rac) const {
-        SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 24> coder(rac);
-
+        SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> coder(rac);
 //        printf("Saving Y Color Bucket: ");
         prevPlanes pixelL, pixelU;
         save_bucket(cb->bucket0, coder, srcRanges, 0, pixelL, pixelU);
 //        printf("\nSaving I Color Buckets\n  ");
         pixelL.push_back(cb->min0);
         pixelU.push_back(cb->min0+CB0a-1);
-        for (auto b : cb->bucket1) { save_bucket(b, coder, srcRanges, 1, pixelL, pixelU); pixelL[0] += CB0a; pixelU[0] += CB0a; }
+        for (auto& b : cb->bucket1) { save_bucket(b, coder, srcRanges, 1, pixelL, pixelU); pixelL[0] += CB0a; pixelU[0] += CB0a; }
 //        printf("\nSaving Q Color Buckets\n  ");
-        pixelL[0] = cb->min0;
-        pixelU[0] = cb->min0+CB0b-1;
-        pixelL.push_back(cb->min1);
-        pixelU.push_back(cb->min1+CB1-1);
-        for (auto bv : cb->bucket2) {
+        if (srcRanges->min(2) < srcRanges->max(2)) {
+          pixelL[0] = cb->min0;
+          pixelU[0] = cb->min0+CB0b-1;
+          pixelL.push_back(cb->min1);
+          pixelU.push_back(cb->min1+CB1-1);
+          for (auto& bv : cb->bucket2) {
                 pixelL[1] = cb->min1;
                 pixelU[1] = cb->min1+CB1-1;
-                for (auto b : bv) {
+                for (auto& b : bv) {
                         save_bucket(b, coder, srcRanges, 2, pixelL, pixelU);
                         pixelL[1] += CB1; pixelU[1] += CB1;
                 }
                 pixelL[0] += CB0b; pixelU[0] += CB0b;
+          }
         }
 //        printf("\n");
         if (srcRanges->numPlanes() > 3) {
@@ -520,6 +528,8 @@ protected:
 
             cb->bucket0.simplify_lossless();
             cb->bucket3.simplify_lossless();
+            for (auto& b : cb->bucket1) b.simplify_lossless();
+            for (auto& bv : cb->bucket2) for (auto& b : bv) b.simplify_lossless();
 
 
         // TODO: IMPROVE THESE HEURISTICS!
@@ -531,6 +541,7 @@ protected:
             int64_t total_pixels = (int64_t) images.size() * images[0].rows() * images[0].cols();
             v_printf(7,", [D=%i,C=%i,P=%i]",totaldiscretecolors,totalcontinuousbuckets,(int) (total_pixels/100));
             if (totaldiscretecolors < total_pixels/200 && totalcontinuousbuckets < total_pixels/50) return true;
+            if (totaldiscretecolors < total_pixels/100 && totalcontinuousbuckets < total_pixels/200) return true;
             if (totaldiscretecolors < total_pixels/40 && totalcontinuousbuckets < total_pixels/500) return true;
 
             // simplify buckets

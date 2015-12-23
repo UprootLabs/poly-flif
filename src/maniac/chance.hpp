@@ -1,3 +1,21 @@
+/*
+ FLIF - Free Lossless Image Format
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 
 #include <vector>
@@ -58,7 +76,7 @@ struct BitChanceStats
 
     std::string format() const {
         std::stringstream ss;
-        ss << sum << '/' << weight;
+        ss << sum << ',' << weight;
         return ss.str();
     }
 };
@@ -162,25 +180,6 @@ public:
 #ifdef STATS
         stats_.add(bit, table.subTable[best].alpha);
 #endif
-/*        if (bit == 0)  {
-          for (int i=0; i<N; i++) {
-            uint64_t sbits = 0;
-            chances[i].estim(0, sbits);
-            uint64_t oqual=quality[i];
-            quality[i] = (oqual*255 + sbits*4097 + 128)>>8;
-            chances[i].put(0, table.subTable[i]);
-          }
-        } else {
-          for (int i=0; i<N; i++) {
-            uint64_t sbits = 0;
-            chances[i].estim(1, sbits);
-            uint64_t oqual=quality[i];
-            quality[i] = (oqual*255 + sbits*4097 + 128)>>8;
-            chances[i].put(1, table.subTable[i]);
-          }
-        }
-*/
-        
         for (int i=0; i<N; i++) { // for each scale
             uint64_t sbits = 0;
             chances[i].estim(bit, sbits); // number of bits if this scale was used

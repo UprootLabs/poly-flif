@@ -1,11 +1,31 @@
+/*
+ FLIF - Free Lossless Image Format
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "common.hpp"
 
-const std::vector<std::string> transforms = {"PLC","YIQ","BND","PLA","PLT","ACB","DUP","FRS","FRA","???"};
+const std::vector<std::string> transforms = {"Channel_Compact","YCoCg","Bounds","Palette_Alpha","Palette","Color_Buckets",
+                                             "Duplicate_Frame","Frame_Shape","Frame_Lookback","Unknown/Reserved"};
 uint8_t transform_l = 0;
 
 int64_t pixels_todo = 0;
 int64_t pixels_done = 0;
 int progressive_qual_target = 0;
+int progressive_qual_shown = -1;
 
 
 const int PLANE_ORDERING[] = {4,3,0,1,2}; // FRA, A, Y, I, Q
@@ -53,8 +73,8 @@ ColorVal predict_and_calcProps_scanlines(Properties &properties, const ColorRang
     ranges->snap(p,properties,min,max,guess);
     assert(min >= ranges->min(p));
     assert(max <= ranges->max(p));
-    assert(guess >= ranges->min(p));
-    assert(guess <= ranges->max(p));
+    assert(guess >= min);
+    assert(guess <= max);
     if (guess == gradientTL) which = 0;
     else if (guess == left) which = 1;
     else if (guess == top) which = 2;
@@ -103,6 +123,7 @@ void initPropRanges(Ranges &propRanges, const ColorRanges &ranges, int p) {
 }
 
 // Actual prediction. Also sets properties. Property vector should already have the right size before calling this.
+ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max) ATTRIBUTE_HOT;
 ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max) {
     ColorVal guess;
     int which = 0;

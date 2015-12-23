@@ -1,3 +1,21 @@
+/*
+ FLIF - Free Lossless Image Format
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 
 #include <vector>
@@ -110,7 +128,7 @@ private:
     std::vector<FinalCompoundSymbolChances<BitChance,bits> > leaf_node;
     Tree &inner_node;
 
-    FinalCompoundSymbolChances<BitChance,bits> inline &find_leaf(const Properties &properties) {
+    FinalCompoundSymbolChances<BitChance,bits> inline &find_leaf(const Properties &properties) ATTRIBUTE_HOT {
         Tree::size_type pos = 0;
         while(inner_node[pos].property != -1) {
             if (inner_node[pos].count < 0) {
@@ -154,7 +172,7 @@ public:
         inner_node[0].leafID = 0;
     }
 
-    int read_int(const Properties &properties, int min, int max) {
+    int read_int(const Properties &properties, int min, int max) ATTRIBUTE_HOT {
         if (min == max) { return min; }
         assert(properties.size() == nb_properties);
         FinalCompoundSymbolChances<BitChance,bits> &chances = find_leaf(properties);
@@ -180,7 +198,7 @@ public:
 
 template <typename BitChance, typename RAC> class MetaPropertySymbolCoder {
 public:
-    typedef SimpleSymbolCoder<BitChance, RAC, 24> Coder;
+    typedef SimpleSymbolCoder<BitChance, RAC, 18> Coder;
 private:
     Coder coder;
     const Ranges range;

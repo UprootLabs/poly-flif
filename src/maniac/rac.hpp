@@ -1,3 +1,21 @@
+/*
+ FLIF - Free Lossless Image Format
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 
 #ifdef STATS
@@ -7,6 +25,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include "../config.h"
+#include "../compiler-specific.hpp"
 
 /* RAC configuration for 24-bit RAC */
 class RacConfig24 {
@@ -45,7 +64,12 @@ private:
         return c;
     }
     void inline input() {
-        while (range <= Config::MIN_RANGE) {
+        if (range <= Config::MIN_RANGE) {
+            low <<= 8;
+            range <<= 8;
+            low |= read_catch_eof();
+        }
+        if (range <= Config::MIN_RANGE) {
             low <<= 8;
             range <<= 8;
             low |= read_catch_eof();
@@ -83,11 +107,11 @@ public:
 
 #ifdef STATS
     ~RacInput() {
-        fprintf(stderr, "Total samples read from range coder: %llu\n", (unsigned long long)samples);
+        fprintf(stdout, "Total samples read from range coder: %llu\n", (unsigned long long)samples);
     }
 #endif
 
-    bool inline read_12bit_chance(uint16_t b12) {
+    bool inline read_12bit_chance(uint16_t b12) ATTRIBUTE_HOT {
         return get(Config::chance_12bit_chance(b12, range));
     }
 

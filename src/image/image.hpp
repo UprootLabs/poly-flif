@@ -1,3 +1,21 @@
+/*
+ FLIF - Free Lossless Image Format
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 
 #include <vector>
@@ -9,6 +27,7 @@
 
 #include "../io.hpp"
 #include "../config.h"
+#include "../compiler-specific.hpp"
 
 typedef int32_t ColorVal;  // used in computations
 
@@ -44,10 +63,12 @@ public:
         data.clear();
     }
     void set(const uint32_t r, const uint32_t c, const ColorVal x) {
+        assert(r<height); assert(c<width);
         data[r*width + c] = x;
     }
-    ColorVal get(const uint32_t r, const uint32_t c) const {
+    ColorVal get(const uint32_t r, const uint32_t c) const ATTRIBUTE_HOT {
 //        if (r >= height || r < 0 || c >= width || c < 0) {printf("OUT OF RANGE!\n"); return 0;}
+        assert(r<height); assert(c<width);
         return data[r*width + c];
     }
 };
@@ -65,19 +86,20 @@ public:
     bool is_constant() const { return true; }
 };
 
+#define SCALED(x) (((x-1)>>scale)+1)
 class Image {
     std::unique_ptr<GeneralPlane> planes[5];
     uint32_t width, height;
     ColorVal minval,maxval;
     int num;
+    int scale;
 #ifdef SUPPORT_HDR
     int depth;
 #else
     const int depth=8;
 #endif
 
-    Image(const Image& other)
-    {
+    Image(const Image& other) {
       // reuse implementation from assignment operator
       operator=(other);
     }
@@ -88,6 +110,7 @@ class Image {
       minval = other.minval;
       maxval = other.maxval;
       num = other.num;
+      scale = other.scale;
 #ifdef SUPPORT_HDR
       depth = other.depth;
 #endif
@@ -100,19 +123,19 @@ class Image {
       {
       int p=num;
       if (depth <= 8) {
-        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_8>>(width, height); // R,Y
-        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_16>>(width, height); // G,I
-        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_16>>(width, height); // B,Q
-        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_8>>(width, height); // A
+        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height)); // R,Y
+        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_16>>(SCALED(width), SCALED(height)); // G,I
+        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_16>>(SCALED(width), SCALED(height)); // B,Q
+        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height)); // A
 #ifdef SUPPORT_HDR
       } else {
-        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_16u>>(width, height); // R,Y
-        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_32>>(width, height); // G,I
-        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_32>>(width, height); // B,Q
-        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_16u>>(width, height); // A
+        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_16u>>(SCALED(width), SCALED(height)); // R,Y
+        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_32>>(SCALED(width), SCALED(height)); // G,I
+        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_32>>(SCALED(width), SCALED(height)); // B,Q
+        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_16u>>(SCALED(width), SCALED(height)); // A
 #endif
       }
-      if (p>4) planes[4] = make_unique<Plane<ColorVal_intern_8>>(width, height); // FRA
+      if (p>4) planes[4] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height)); // FRA
       }
       for(int p=0; p<num; p++)
           for (uint32_t r=0; r<height; r++)
@@ -131,11 +154,11 @@ public:
     std::vector<uint32_t> col_end;
     int seen_before;
 
-    Image(uint32_t width, uint32_t height, ColorVal min, ColorVal max, int planes) {
+    Image(uint32_t width, uint32_t height, ColorVal min, ColorVal max, int planes, int s=0) : scale(s) {
         init(width, height, min, max, planes);
     }
 
-    Image() {
+    Image(int s=0) : scale(s) {
       width = height = 0;
       minval = maxval = 0;
       num = 0;
@@ -159,6 +182,7 @@ public:
       minval = other.minval;
       maxval = other.maxval;
       num = other.num;
+      scale = other.scale;
       for (int p=0; p<num; p++) planes[p] = std::move(other.planes[p]);
       frame_delay = other.frame_delay;
 #ifdef SUPPORT_HDR
@@ -209,19 +233,19 @@ public:
       clear();
       try {
       if (depth <= 8) {
-        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_8>>(width, height); // R,Y
-        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_16>>(width, height); // G,I
-        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_16>>(width, height); // B,Q
-        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_8>>(width, height); // A
+        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height)); // R,Y
+        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_16>>(SCALED(width), SCALED(height)); // G,I
+        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_16>>(SCALED(width), SCALED(height)); // B,Q
+        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height)); // A
 #ifdef SUPPORT_HDR
       } else {
-        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_16u>>(width, height); // R,Y
-        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_32>>(width, height); // G,I
-        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_32>>(width, height); // B,Q
-        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_16u>>(width, height); // A
+        if (p>0) planes[0] = make_unique<Plane<ColorVal_intern_16u>>(SCALED(width), SCALED(height)); // R,Y
+        if (p>1) planes[1] = make_unique<Plane<ColorVal_intern_32>>(SCALED(width), SCALED(height)); // G,I
+        if (p>2) planes[2] = make_unique<Plane<ColorVal_intern_32>>(SCALED(width), SCALED(height)); // B,Q
+        if (p>3) planes[3] = make_unique<Plane<ColorVal_intern_16u>>(SCALED(width), SCALED(height)); // A
 #endif
       }
-      if (p>4) planes[4] = make_unique<Plane<ColorVal_intern_8>>(width, height); // FRA
+      if (p>4) planes[4] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height)); // FRA
       }
       catch (std::bad_alloc& ba) {
         e_printf("Error: could not allocate enough memory for image data.\n");
@@ -235,6 +259,17 @@ public:
     Image clone()
     {
       return *this;
+    }
+    void normalize_scale() {
+//      v_printf(3,"%ix%i -> ",width,height);
+      width = SCALED(width);
+      height = SCALED(height);
+      scale = 0;
+//      v_printf(3,"%ix%i\n",width,height);
+      col_begin.clear();
+      col_begin.resize(height,0);
+      col_end.clear();
+      col_end.resize(height,width);
     }
 
     void clear() {
@@ -289,33 +324,45 @@ public:
       ColorVal val = operator()(p,0,0);
       planes[p].reset(nullptr);
       if (depth <= 8) {
-        if (p==0) planes[0] = make_unique<Plane<ColorVal_intern_8>>(width, height, val); // R,Y
-        if (p==1) planes[1] = make_unique<Plane<ColorVal_intern_16>>(width, height, val); // G,I
-        if (p==2) planes[2] = make_unique<Plane<ColorVal_intern_16>>(width, height, val); // B,Q
-        if (p==3) planes[3] = make_unique<Plane<ColorVal_intern_8>>(width, height, val); // A
+        if (p==0) planes[0] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height), val); // R,Y
+        if (p==1) planes[1] = make_unique<Plane<ColorVal_intern_16>>(SCALED(width), SCALED(height), val); // G,I
+        if (p==2) planes[2] = make_unique<Plane<ColorVal_intern_16>>(SCALED(width), SCALED(height), val); // B,Q
+        if (p==3) planes[3] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height), val); // A
 #ifdef SUPPORT_HDR
       } else {
-        if (p==0) planes[0] = make_unique<Plane<ColorVal_intern_16u>>(width, height, val); // R,Y
-        if (p==1) planes[1] = make_unique<Plane<ColorVal_intern_32>>(width, height, val); // G,I
-        if (p==2) planes[2] = make_unique<Plane<ColorVal_intern_32>>(width, height, val); // B,Q
-        if (p==3) planes[3] = make_unique<Plane<ColorVal_intern_16u>>(width, height, val); // A
+        if (p==0) planes[0] = make_unique<Plane<ColorVal_intern_16u>>(SCALED(width), SCALED(height), val); // R,Y
+        if (p==1) planes[1] = make_unique<Plane<ColorVal_intern_32>>(SCALED(width), SCALED(height), val); // G,I
+        if (p==2) planes[2] = make_unique<Plane<ColorVal_intern_32>>(SCALED(width), SCALED(height), val); // B,Q
+        if (p==3) planes[3] = make_unique<Plane<ColorVal_intern_16u>>(SCALED(width), SCALED(height), val); // A
 #endif
       }
     }
-    void ensure_frame_lookbacks() {
+    void ensure_chroma() {
         switch(num) {
             case 1:
-              num=3;
               make_constant_plane(1,((1<<depth)-1));
+            case 2:
               make_constant_plane(2,((1<<depth)-1));
+              num=3;
+            default:
+              assert(num>=3);
+        }
+    }
+    void ensure_alpha() {
+        ensure_chroma();
+        switch(num) {
             case 3:
               make_constant_plane(3,255);
-            case 4:
-              planes[4] = make_unique<Plane<ColorVal_intern_8>>(width, height);
-              num=5;
+              num=4;
             default:
-              assert(num==5);
-              num=5;
+              assert(num>=4);
+        }
+    }
+    void ensure_frame_lookbacks() {
+        if (num < 5) {
+            ensure_alpha();
+            planes[4] = make_unique<Plane<ColorVal_intern_8>>(SCALED(width), SCALED(height));
+            num=5;
         }
     }
 
@@ -323,18 +370,17 @@ public:
     bool load(const char *name);
 #endif
     bool save(const char *name) const;
-    bool save(const char *name, const int scale) const;
 
     // access pixel by coordinate
-    ColorVal operator()(const int p, const uint32_t r, const uint32_t c) const {
+    ColorVal operator()(const int p, const uint32_t r, const uint32_t c) const ATTRIBUTE_HOT {
       assert(p>=0);
       assert(p<num);
-      return planes[p]->get(r,c);
+      return planes[p]->get(r>>scale,c>>scale);
     }
     void set(int p, uint32_t r, uint32_t c, ColorVal x) {
       assert(p>=0);
       assert(p<num);
-      planes[p]->set(r,c,x);
+      planes[p]->set(r>>scale,c>>scale,x);
     }
 
     int numPlanes() const { return num; }
@@ -362,7 +408,7 @@ public:
         while (zoom_rowpixelsize(z) < rows() || zoom_colpixelsize(z) < cols()) z++;
         return z;
     }
-    ColorVal operator()(int p, int z, uint32_t rz, uint32_t cz) const {
+    ColorVal operator()(int p, int z, uint32_t rz, uint32_t cz) const ATTRIBUTE_HOT {
         uint32_t r = rz*zoom_rowpixelsize(z);
         uint32_t c = cz*zoom_colpixelsize(z);
         return operator()(p,r,c);
@@ -389,6 +435,9 @@ public:
                }
 //          printf("Computed checksum: %X\n", (~crc & 0xFFFFFFFF));
           return (~crc & 0xFFFFFFFF);
+    }
+    void abort_decoding() {
+        width = 0; // this is used to signal the decoder to stop
     }
 
 };

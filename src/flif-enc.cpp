@@ -1,3 +1,21 @@
+/*
+ FLIF encoder - Free Lossless Image Format
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, GPL v3+
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "config.h"
 #ifdef HAS_ENCODER
 #include <string>
@@ -109,15 +127,14 @@ void flif_encode_FLIF2_inner(IO& io, Rac& rac, std::vector<Coder> &coders, const
       std::pair<int, int> pzl = plane_zoomlevel(images[0], beginZL, endZL, i);
       int p = pzl.first;
       int z = pzl.second;
+      if (endZL == 0) v_printf(2,"\r%i%% done [%i/%i] ENC[%i,%ux%u]  ",(int)(100*pixels_done/pixels_todo),i,plane_zoomlevels(images[0], beginZL, endZL)-1,p,images[0].cols(z),images[0].rows(z));
       if (ranges->min(p) >= ranges->max(p)) continue;
-      if (endZL==0) {
-          v_printf(2,"\r%i%% done [%i/%i] ENC[%i,%ux%u]  ",(int) (100*pixels_done/pixels_todo),i,plane_zoomlevels(images[0], beginZL, endZL)-1,p,images[0].cols(z),images[0].rows(z));
-      }
-      pixels_done += (images[0].cols(z)/(z%2==0?1:2))*(images[0].rows(z)/(z%2==0?2:1));
       Properties properties((nump>3?NB_PROPERTIESA[p]:NB_PROPERTIES[p]));
       if (z % 2 == 0) {
         // horizontal: scan the odd rows, output pixel values
           for (uint32_t r = 1; r < images[0].rows(z); r += 2) {
+            pixels_done += images[0].cols(z);
+            if (endZL == 0 && (r & 65)==65) v_printf(3,"\r%i%% done [%i/%i] ENC[%i,%ux%u]  ",(int)(100*pixels_done/pixels_todo),i,plane_zoomlevels(images[0], beginZL, endZL)-1,p,images[0].cols(z),images[0].rows(z));
             for (int fr=0; fr<(int)images.size(); fr++) {
               const Image& image = images[fr];
               if (image.seen_before >= 0) { continue; }
@@ -137,6 +154,8 @@ void flif_encode_FLIF2_inner(IO& io, Rac& rac, std::vector<Coder> &coders, const
       } else {
         // vertical: scan the odd columns
           for (uint32_t r = 0; r < images[0].rows(z); r++) {
+            pixels_done += images[0].cols(z)/2;
+            if (endZL == 0 && (r&129)==129) v_printf(3,"\r%i%% done [%i/%i] ENC[%i,%ux%u]  ",(int)(100*pixels_done/pixels_todo),i,plane_zoomlevels(images[0], beginZL, endZL)-1,p,images[0].cols(z),images[0].rows(z));
             for (int fr=0; fr<(int)images.size(); fr++) {
               const Image& image = images[fr];
               if (image.seen_before >= 0) { continue; }
@@ -175,14 +194,13 @@ void flif_encode_FLIF2_pass(IO& io, Rac &rac, const Images &images, const ColorR
         coders.emplace_back(rac, propRanges, forest[p], split_threshold, cutoff, alpha);
     }
 
-    for (const Image& image : images)
-    if (beginZL == image.zooms()) {
+    if (beginZL == images[0].zooms() && endZL>0) {
       // special case: very left top pixel must be written first to get it all started
-      SimpleSymbolCoder<FLIFBitChanceMeta, Rac, 24> metaCoder(rac);
-      for (int p = 0; p < image.numPlanes(); p++) {
-        ColorVal curr = image(p,0,0);
+//      SimpleSymbolCoder<FLIFBitChanceMeta, Rac, 18> metaCoder(rac);
+      UniformSymbolCoder<Rac> metaCoder(rac);
+      for (int p = 0; p < images[0].numPlanes(); p++) {
         if (ranges->min(p) < ranges->max(p)) {
-            metaCoder.write_int(ranges->min(p), ranges->max(p), curr);
+            for (const Image& image : images) metaCoder.write_int(ranges->min(p), ranges->max(p), image(p,0,0));
             pixels_done++;
         }
       }
@@ -269,9 +287,11 @@ void flif_encode_main(RacOut<IO>& rac, IO& io, Images &images, flifEncoding enco
                  int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int cutoff = 2, int alpha = 0xFFFFFFFF / 19) {
 
     Image& image=images[0];
-
-    pixels_todo = (int64_t)image.rows()*image.cols()*ranges->numPlanes()*(learn_repeats+1);
+    int realnumplanes = 0;
+    for (int i=0; i<ranges->numPlanes(); i++) if (ranges->min(i)<ranges->max(i)) realnumplanes++;
+    pixels_todo = (int64_t)image.rows()*image.cols()*realnumplanes*(learn_repeats+1);
     pixels_done = 0;
+    if (pixels_todo == 0) pixels_todo = pixels_done = 1;
 
     // two passes
     std::vector<Tree> forest(ranges->numPlanes(), Tree());
@@ -320,7 +340,7 @@ void flif_encode_main(RacOut<IO>& rac, IO& io, Images &images, flifEncoding enco
 
 template <typename IO>
 bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding,
-                 int learn_repeats, int acb, int frame_delay, int palette_size, int lookback,
+                 int learn_repeats, int acb, int palette_size, int lookback,
                  int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD, int cutoff=2, int alpha=19) {
 
     io.fputs("FLIF");  // bytes 1-4 are fixed magic
@@ -373,7 +393,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     io.fputc(image.rows() & 0xFF);
 
     RacOut<IO> rac(io);
-    SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 24> metaCoder(rac);
+    SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> metaCoder(rac);
 
     v_printf(3,"Input: %ux%u, channels:", images[0].cols(), images[0].rows());
     for (int p = 0; p < numPlanes; p++) {
@@ -402,8 +422,14 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     }
 //    v_printf(2,"Header: %li bytes.\n", ftell(f));
 
-    metaCoder.write_int(1,128,cutoff);
-    metaCoder.write_int(4,128,alpha);
+    if (cutoff==2 && alpha==19) {
+      metaCoder.write_int(0,1,0); // using default constants for cutoff/alpha
+    } else {
+      metaCoder.write_int(0,1,1); // not using default constants
+      metaCoder.write_int(1,128,cutoff);
+      metaCoder.write_int(4,128,alpha);
+      metaCoder.write_int(0,1,0); // using default initial bitchances (non-default values has not been implemented yet!)
+    }
     alpha = 0xFFFFFFFF/alpha;
 
     std::vector<const ColorRanges*> rangesList;
@@ -415,11 +441,11 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 
     for (unsigned int i=0; i<transDesc.size(); i++) {
         Transform<IO> *trans = create_transform<IO>(transDesc[i]);
-        if (transDesc[i] == "PLT" || transDesc[i] == "PLA") trans->configure(palette_size);
-        if (transDesc[i] == "FRA") trans->configure(lookback);
-        if (!trans->init(rangesList.back()) || 
+        if (transDesc[i] == "Palette" || transDesc[i] == "Palette_Alpha") trans->configure(palette_size);
+        if (transDesc[i] == "Frame_Lookback") trans->configure(lookback);
+        if (!trans->init(rangesList.back()) ||
             (!trans->process(rangesList.back(), images)
-              && !(acb==1 && transDesc[i] == "ACB" && (v_printf(4,", forced_"), (tcount=0), true) ))) {
+              && !(acb==1 && transDesc[i] == "Color_Buckets" && (v_printf(4,", forced "), (tcount=0), true) ))) {
             //e_printf( "Transform '%s' failed\n", transDesc[i].c_str());
         } else {
             if (tcount++ > 0) v_printf(4,", ");
@@ -456,7 +482,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     if (mbits > bits) { e_printf("OOPS: this FLIF only supports 8-bit RGBA (not compiled with SUPPORT_HDR)\n"); return false;}
 
     if (alphazero && ranges->numPlanes() > 3 && ranges->min(3) <= 0) {
-      v_printf(4,"Replacing fully transparent pixels with predicted pixel values at the other planes\n");
+      v_printf(4,"Replacing fully transparent RGB subpixels with predicted subpixel values\n");
       switch(encoding) {
         case flifEncoding::nonInterlaced: flif_encode_scanlines_interpol_zero_alpha(images, ranges); break;
         case flifEncoding::interlaced: flif_encode_FLIF2_interpol_zero_alpha(images, ranges, image.zooms(), 0); break;
@@ -465,13 +491,11 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     for (int p = 0; p < ranges->numPlanes(); p++) {
         if (ranges->min(p) >= ranges->max(p)) {
             v_printf(4,"Constant plane %i at color value %i\n",p,ranges->min(p));
-            pixels_todo -= (int64_t)image.rows()*image.cols()*(learn_repeats+1);
+            //pixels_todo -= (int64_t)image.rows()*image.cols()*(learn_repeats+1);
             for (int fr = 0; fr < numFrames; fr++)
                 images[fr].make_constant_plane(p,ranges->min(p));
         }
     }
-    // not computing checksum until after transformations and potential zero-alpha changes
-    const uint32_t checksum = image.checksum();
 
 
     if (bits ==10) {
@@ -482,9 +506,16 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 #endif
     }
 
-    //v_printf(2,"Writing checksum: %X\n", checksum);
-    metaCoder.write_int(0, 0xFFFF, checksum / 0x10000);
-    metaCoder.write_int(0, 0xFFFF, checksum & 0xFFFF);
+    if (io.ftell() > 100) {
+      // not computing checksum until after transformations and potential zero-alpha changes
+      const uint32_t checksum = image.checksum();
+      //v_printf(2,"Writing checksum: %X\n", checksum);
+      metaCoder.write_int(0,1,1);
+      metaCoder.write_int(16, (checksum >> 16) & 0xFFFF);
+      metaCoder.write_int(16, checksum & 0xFFFF);
+    } else {
+      metaCoder.write_int(0,1,0); // don't write checksum for tiny images
+    }
     rac.flush();
     io.flush();
 
@@ -507,7 +538,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 }
 
 
-template bool flif_encode(FileIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int frame_delay, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha);
-template bool flif_encode(BlobIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int frame_delay, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha);
+template bool flif_encode(FileIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha);
+template bool flif_encode(BlobIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha);
 
 #endif
