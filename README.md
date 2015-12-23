@@ -16,7 +16,7 @@ Current JS size: 202KB (53KB gzipped).
 * Animation speed and loop control. [#2](https://github.com/UprootLabs/poly-flif/issues/2)
 
 ## License
-The license of this library is GPLv3, because the upstream license is GPLv3. When [upstream moves to a more permissive license](https://github.com/FLIF-hub/FLIF/issues/27) so will we.
+GNU Lesser General Public License (LGPLv3+) in accordance with the upstream license.
 
 ## About FLIF
 
