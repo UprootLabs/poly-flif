@@ -1,24 +1,25 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #pragma once
 
 #include <vector>
+#include <algorithm>
 
 #include "transform.hpp"
 #include "../maniac/symbol.hpp"
@@ -29,24 +30,26 @@ protected:
     const ColorRanges *ranges;
 public:
     ColorRangesBounds(const std::vector<std::pair<ColorVal, ColorVal> > &boundsIn, const ColorRanges *rangesIn) : bounds(boundsIn), ranges(rangesIn) {}
-    bool isStatic() const { return false; }
-    int numPlanes() const { return bounds.size(); }
-    ColorVal min(int p) const { assert(p<numPlanes()); return std::max(ranges->min(p), bounds[p].first); }
-    ColorVal max(int p) const { assert(p<numPlanes()); return std::min(ranges->max(p), bounds[p].second); }
-    void snap(const int p, const prevPlanes &pp, ColorVal &min, ColorVal &max, ColorVal &v) const {
+    bool isStatic() const override { return false; }
+    int numPlanes() const override { return bounds.size(); }
+    ColorVal min(int p) const override { assert(p<numPlanes()); return std::max(ranges->min(p), bounds[p].first); }
+    ColorVal max(int p) const override { assert(p<numPlanes()); return std::min(ranges->max(p), bounds[p].second); }
+    void snap(const int p, const prevPlanes &pp, ColorVal &min, ColorVal &max, ColorVal &v) const override {
         if (p==0 || p==3) { min=bounds[p].first; max=bounds[p].second; } // optimization for special case
-        else ranges->snap(p,pp,min,max,v);
-        if (min < bounds[p].first) min=bounds[p].first;
-        if (max > bounds[p].second) max=bounds[p].second;
-        if (min>max) {
+        else {
+          ranges->snap(p,pp,min,max,v);
+          if (min < bounds[p].first) min=bounds[p].first;
+          if (max > bounds[p].second) max=bounds[p].second;
+          if (min>max) {
            // should happen only if alpha=0 interpolation produces YI combination for which Q range from ColorRangesYIQ is outside bounds
            min=bounds[p].first;
            max=bounds[p].second;
+          }
         }
         if(v>max) v=max;
         if(v<min) v=min;
     }
-    void minmax(const int p, const prevPlanes &pp, ColorVal &min, ColorVal &max) const {
+    void minmax(const int p, const prevPlanes &pp, ColorVal &min, ColorVal &max) const override {
         assert(p<numPlanes());
         if (p==0 || p==3) { min=bounds[p].first; max=bounds[p].second; return; } // optimization for special case
         ranges->minmax(p, pp, min, max);
@@ -67,9 +70,9 @@ class TransformBounds : public Transform<IO> {
 protected:
     std::vector<std::pair<ColorVal, ColorVal> > bounds;
 
-    bool undo_redo_during_decode() { return false; }
+    bool undo_redo_during_decode() override { return false; }
 
-    const ColorRanges *meta(Images&, const ColorRanges *srcRanges) {
+    const ColorRanges *meta(Images&, const ColorRanges *srcRanges) override {
         if (srcRanges->isStatic()) {
             return new StaticColorRanges(bounds);
         } else {
@@ -77,14 +80,15 @@ protected:
         }
     }
 
-    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
+    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) override {
+        if (srcRanges->numPlanes() > 4) return false; // something wrong if Bounds is done on FRA
         SimpleSymbolCoder<SimpleBitChance, RacIn<IO>, 18> coder(rac);
         bounds.clear();
         for (int p=0; p<srcRanges->numPlanes(); p++) {
 //            ColorVal min = coder.read_int(0, srcRanges->max(p) - srcRanges->min(p)) + srcRanges->min(p);
 //            ColorVal max = coder.read_int(0, srcRanges->max(p) - min) + min;
-            ColorVal min = coder.read_int(srcRanges->min(p), srcRanges->max(p));
-            ColorVal max = coder.read_int(min, srcRanges->max(p));
+            ColorVal min = coder.read_int2(srcRanges->min(p), srcRanges->max(p));
+            ColorVal max = coder.read_int2(min, srcRanges->max(p));
             if (min > max) return false;
             if (min < srcRanges->min(p)) return false;
             if (max > srcRanges->max(p)) return false;
@@ -95,20 +99,20 @@ protected:
     }
 
 #ifdef HAS_ENCODER
-    void save(const ColorRanges *srcRanges, RacOut<IO> &rac) const {
+    void save(const ColorRanges *srcRanges, RacOut<IO> &rac) const override {
         SimpleSymbolCoder<SimpleBitChance, RacOut<IO>, 18> coder(rac);
         for (int p=0; p<srcRanges->numPlanes(); p++) {
             ColorVal min = bounds[p].first;
             ColorVal max = bounds[p].second;
 //            coder.write_int(0, srcRanges->max(p) - srcRanges->min(p), min - srcRanges->min(p));
 //            coder.write_int(0, srcRanges->max(p) - min, max - min);
-            coder.write_int(srcRanges->min(p), srcRanges->max(p), min);
-            coder.write_int(min, srcRanges->max(p), max);
+            coder.write_int2(srcRanges->min(p), srcRanges->max(p), min);
+            coder.write_int2(min, srcRanges->max(p), max);
             v_printf(5,"[%i:%i..%i]",p,min,max);
         }
     }
 
-    bool process(const ColorRanges *srcRanges, const Images &images) {
+    bool process(const ColorRanges *srcRanges, const Images &images) override {
         bounds.clear();
         bool trivialbounds=true;
         int nump=srcRanges->numPlanes();

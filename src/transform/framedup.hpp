@@ -1,20 +1,21 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
+
 
 #pragma once
 
@@ -31,8 +32,8 @@ protected:
     std::vector<int> seen_before;
     uint32_t nb;
 
-    bool undo_redo_during_decode() { return false; }
-    const ColorRanges *meta(Images& images, const ColorRanges *srcRanges) {
+    bool undo_redo_during_decode() override { return false; }
+    const ColorRanges *meta(Images& images, const ColorRanges *srcRanges) override {
         for (unsigned int fr=0; fr<images.size(); fr++) {
             Image& image = images[fr];
             image.seen_before = seen_before[fr];
@@ -40,9 +41,9 @@ protected:
         return new DupColorRanges(srcRanges);
     }
 
-    void configure(const int setting) { nb=setting; }
+    void configure(const int setting) override { nb=setting; }
 
-    bool load(const ColorRanges *, RacIn<IO> &rac) {
+    bool load(const ColorRanges *, RacIn<IO> &rac) override {
         SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> coder(rac);
         seen_before.clear();
         seen_before.push_back(-1);
@@ -52,14 +53,14 @@ protected:
     }
 
 #ifdef HAS_ENCODER
-    void save(const ColorRanges *, RacOut<IO> &rac) const {
+    void save(const ColorRanges *, RacOut<IO> &rac) const override {
         SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> coder(rac);
         assert(nb == seen_before.size());
         for (unsigned int i=1; i<seen_before.size(); i++) coder.write_int(-1,i-1,seen_before[i]);
         int count=0; for(int i : seen_before) { if(i>=0) count++; } v_printf(5,"[%i]",count);
     }
 
-    bool process(const ColorRanges *srcRanges, const Images &images) {
+    bool process(const ColorRanges *srcRanges, const Images &images) override {
         int np=srcRanges->numPlanes();
         nb = images.size();
         seen_before.clear();

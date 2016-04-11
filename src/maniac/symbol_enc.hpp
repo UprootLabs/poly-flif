@@ -1,9 +1,9 @@
 /*
  FLIF encoder - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, GPL v3+
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
 
  This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
+ it under the terms of the GNU Lesser General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
 
@@ -12,7 +12,7 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
+ You should have received a copy of the GNU Lesser General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
@@ -61,15 +61,18 @@ template <int bits, typename SymbolCoder> void writer(SymbolCoder& coder, int mi
         return;
     }
 
+    assert(min <= 0 && max >= 0); // should always be the case, because guess should always be in valid range
+
     // only output zero bit if value could also have been zero
-    if (max >= 0 && min <= 0) coder.write(false,BIT_ZERO);
+    //if (max >= 0 && min <= 0) 
+    coder.write(false,BIT_ZERO);
     int sign = (value > 0 ? 1 : 0);
     if (max > 0 && min < 0) {
         // only output sign bit if value can be both pos and neg
-        if (min < 0 && max > 0) coder.write(sign,BIT_SIGN);
+        coder.write(sign,BIT_SIGN);
     }
-    if (sign && min <= 0) min = 1;
-    if (!sign && max >= 0) max = -1;
+    if (sign) min = 1;
+    if (!sign) max = -1;
     const int a = abs(value);
     const int e = maniac::util::ilog2(a);
     int amin = sign ? abs(min) : abs(max);
@@ -82,7 +85,7 @@ template <int bits, typename SymbolCoder> void writer(SymbolCoder& coder, int mi
         // if exponent >i is impossible, we are done
         if ((1 << (i+1)) > amax) break;
         // if exponent i is possible, output the exponent bit
-        coder.write(i==e, BIT_EXP, i);
+        coder.write(i==e, BIT_EXP, (i<<1) + sign);
         if (i==e) break;
         i++;
     }

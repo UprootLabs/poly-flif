@@ -1,19 +1,19 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #pragma once
@@ -41,6 +41,9 @@ public:
     PropertyVal splitval;
     uint32_t childID;
     uint32_t leafID;
+    // probably safe to use only uint16
+    //uint16_t childID;
+    //uint16_t leafID;
     PropertyDecisionNode(int p=-1, int s=0, int c=0) : property(p), count(0), splitval(s), childID(c), leafID(0) {}
 };
 
@@ -191,7 +194,7 @@ public:
     void write_int(const Properties &properties, int nbits, int val);
 #endif
 
-    static void simplify(int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE) {}
+    static void simplify(int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int plane=0) {}
 };
 
 
@@ -200,13 +203,13 @@ template <typename BitChance, typename RAC> class MetaPropertySymbolCoder {
 public:
     typedef SimpleSymbolCoder<BitChance, RAC, 18> Coder;
 private:
-    Coder coder;
+    std::vector<Coder> coder;
     const Ranges range;
     unsigned int nb_properties;
 
 public:
     MetaPropertySymbolCoder(RAC &racIn, const Ranges &rangesIn, int cut = 2, int alpha = 0xFFFFFFFF / 19) :
-        coder(racIn, cut, alpha),
+        coder(3,Coder(racIn, cut, alpha)),
         range(rangesIn),
         nb_properties(rangesIn.size())
     {
@@ -222,7 +225,7 @@ public:
 
     bool read_subtree(int pos, Ranges &subrange, Tree &tree) {
         PropertyDecisionNode &n = tree[pos];
-        int p = n.property = coder.read_int(0,nb_properties)-1;
+        int p = n.property = coder[0].read_int2(0,nb_properties)-1;
 
         if (p != -1) {
             int oldmin = subrange[p].first;
@@ -231,9 +234,9 @@ public:
               e_printf( "Invalid tree. Aborting tree decoding.\n");
               return false;
             }
-            n.count = coder.read_int(CONTEXT_TREE_MIN_COUNT, CONTEXT_TREE_MAX_COUNT); // * CONTEXT_TREE_COUNT_QUANTIZATION;
+            n.count = coder[1].read_int2(CONTEXT_TREE_MIN_COUNT, CONTEXT_TREE_MAX_COUNT); // * CONTEXT_TREE_COUNT_QUANTIZATION;
             assert(oldmin < oldmax);
-            int splitval = n.splitval = coder.read_int(oldmin, oldmax-1);
+            int splitval = n.splitval = coder[2].read_int2(oldmin, oldmax-1);
             int childID = n.childID = tree.size();
 //            e_printf( "Pos %i: prop %i splitval %i in [%i..%i]\n", pos, n.property, splitval, oldmin, oldmax-1);
             tree.push_back(PropertyDecisionNode());
@@ -255,7 +258,11 @@ public:
           Ranges rootrange(range);
           tree.clear();
           tree.push_back(PropertyDecisionNode());
-          return read_subtree(0, rootrange, tree);
+          if (read_subtree(0, rootrange, tree)) {
+            v_printf(6,"Read MANIAC tree with %u inner nodes.\n",(unsigned int) tree.size());
+            return true;
+          } else return false;
+          //return read_subtree(0, rootrange, tree);
     }
 };
 

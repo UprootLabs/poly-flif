@@ -1,9 +1,9 @@
 /*
  FLIF encoder - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, GPL v3+
+ Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
 
  This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
+ it under the terms of the GNU Lesser General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
 
@@ -12,7 +12,7 @@
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
+ You should have received a copy of the GNU Lesser General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
@@ -296,18 +296,19 @@ public:
     }
 
     // destructive simplification procedure, prunes subtrees with too low counts
-    long long int simplify_subtree(int pos, int divisor, int min_size) {
+    long long int simplify_subtree(int pos, int divisor, int min_size, int indent, int plane) {
         PropertyDecisionNode &n = inner_node[pos];
         if (n.property == -1) {
-//            printf("* leaf %i : count=%lli, size=%llu bits, bits per int: %f\n", n.leafID, (long long int)leaf_node[n.leafID].count, (unsigned long long int)leaf_node[n.leafID].realSize/5461, (leaf_node[n.leafID].count > 0 ? leaf_node[n.leafID].realSize/leaf_node[n.leafID].count*1.0/5461 : -1));
+            for (int i=0;i<indent;i++) v_printf(10,"  ");
+            v_printf(10,"* leaf: count=%lli, size=%llu bits, bits per int: %f\n", (long long int)leaf_node[n.leafID].count, (unsigned long long int)leaf_node[n.leafID].realSize/5461, (leaf_node[n.leafID].count > 0 ? leaf_node[n.leafID].realSize/leaf_node[n.leafID].count*1.0/5461 : -1));
             if (leaf_node[n.leafID].count == 0) return -100; // avoid empty leafs by giving them an extra penalty
             return leaf_node[n.leafID].count;
         } else {
-//            printf("* split on prop %i at val %i after %lli steps\n", n.property, n.splitval, (long long int)n.count);
-//            printf("* split on prop %i\n", n.property);
+            for (int i=0;i<indent;i++) v_printf(10,"  ");
+            v_printf(10,"* test: plane %i, property %i, value > %i ?  (after %lli steps)\n", plane, n.property, n.splitval, (long long int)n.count);
             long long int subtree_size = 0;
-            subtree_size += simplify_subtree(n.childID, divisor, min_size);
-            subtree_size += simplify_subtree(n.childID+1, divisor, min_size);
+            subtree_size += simplify_subtree(n.childID, divisor, min_size, indent+1, plane);
+            subtree_size += simplify_subtree(n.childID+1, divisor, min_size, indent+1, plane);
             n.count /= divisor;
             if (n.count > CONTEXT_TREE_MAX_COUNT) {
                n.count = CONTEXT_TREE_MAX_COUNT;
@@ -322,8 +323,9 @@ public:
             return subtree_size;
         }
     }
-    void simplify(int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE) {
-        simplify_subtree(0, divisor, min_size);
+    void simplify(int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int plane=0) {
+        v_printf(10,"PLANE %i: TREE BEFORE SIMPLIFICATION:\n",plane);
+        simplify_subtree(0, divisor, min_size, 0, plane);
     }
 };
 
@@ -333,14 +335,14 @@ template <typename BitChance, typename RAC>
 void MetaPropertySymbolCoder<BitChance,RAC>::write_subtree(int pos, Ranges &subrange, const Tree &tree) {
         const PropertyDecisionNode &n = tree[pos];
         int p = n.property;
-        coder.write_int(0,nb_properties,p+1);
+        coder[0].write_int2(0,nb_properties,p+1);
         if (p != -1) {
-            coder.write_int(CONTEXT_TREE_MIN_COUNT, CONTEXT_TREE_MAX_COUNT, n.count);
+            coder[1].write_int2(CONTEXT_TREE_MIN_COUNT, CONTEXT_TREE_MAX_COUNT, n.count);
 //            printf("From properties 0..%i, split node at PROPERTY %i\n",nb_properties-1,p);
             int oldmin = subrange[p].first;
             int oldmax = subrange[p].second;
             assert(oldmin < oldmax);
-            coder.write_int(oldmin, oldmax-1, n.splitval);
+            coder[2].write_int2(oldmin, oldmax-1, n.splitval);
 //            e_printf( "Pos %i: prop %i splitval %i in [%i..%i]\n", pos, n.property, n.splitval, oldmin, oldmax-1);
             // > splitval
             subrange[p].first = n.splitval+1;

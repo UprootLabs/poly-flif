@@ -24,6 +24,7 @@ public:
         assert(v >= minv);
     }
     virtual bool isStatic() const { return true; }
+    virtual const ColorRanges* previous() const { return NULL; }
 };
 
 typedef std::vector<std::pair<ColorVal, ColorVal> > StaticColorRangeList;
@@ -35,9 +36,9 @@ protected:
 
 public:
     StaticColorRanges(StaticColorRangeList r) : ranges(r) {}
-    int numPlanes() const { return ranges.size(); }
-    ColorVal min(int p) const { if (p >= numPlanes()) return 0; assert(p<numPlanes()); return ranges[p].first; }
-    ColorVal max(int p) const { if (p >= numPlanes()) return 0; assert(p<numPlanes()); return ranges[p].second; }
+    int numPlanes() const override { return ranges.size(); }
+    ColorVal min(int p) const override { if (p >= numPlanes()) return 0; assert(p<numPlanes()); return ranges[p].first; }
+    ColorVal max(int p) const override { if (p >= numPlanes()) return 0; assert(p<numPlanes()); return ranges[p].second; }
 };
 
 const ColorRanges *getRanges(const Image &image);
@@ -48,11 +49,12 @@ protected:
 public:
     DupColorRanges(const ColorRanges *rangesIn) : ranges(rangesIn) {}
 
-    int numPlanes() const { return ranges->numPlanes(); }
-    ColorVal min(int p) const { return ranges->min(p); }
-    ColorVal max(int p) const { return ranges->max(p); }
-    void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const { ranges->minmax(p,pp,minv,maxv); }
-    bool isStatic() const { return ranges->isStatic(); }
+    int numPlanes() const override { return ranges->numPlanes(); }
+    ColorVal min(int p) const override { return ranges->min(p); }
+    ColorVal max(int p) const override { return ranges->max(p); }
+    void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const override { ranges->minmax(p,pp,minv,maxv); }
+    bool isStatic() const override { return ranges->isStatic(); }
+    const ColorRanges* previous() const override { return ranges; }
 };
 
 const ColorRanges *dupRanges(const ColorRanges *ranges);

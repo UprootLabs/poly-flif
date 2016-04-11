@@ -1,5 +1,8 @@
 flif:
-	cd src; make
+	cd src && $(MAKE)
 
 install:
-	cd src; make install
+	cd src && $(MAKE) install
+
+install-dev:
+	cd src && $(MAKE) install-dev

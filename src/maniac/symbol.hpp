@@ -1,19 +1,19 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #pragma once
@@ -33,6 +33,7 @@ public:
 
 #ifdef HAS_ENCODER
     void write_int(int min, int max, int val);
+    void write_int(int bits, int val) { write_int(0, (1<<bits) -1, val); };
 #endif
     int read_int(int min, int max) {
         assert(max >= min);
@@ -50,11 +51,13 @@ public:
             return read_int(min, min+med);
         }
     }
+    int read_int(int bits) { return read_int(0, (1<<bits)-1); }
 };
 
 typedef enum {
     BIT_ZERO,
     BIT_SIGN,
+
     BIT_EXP,
     BIT_MANT,
 //    BIT_EXTRA
@@ -93,7 +96,7 @@ extern SymbolChanceStats global_symbol_stats;
 template <typename BitChance, int bits> class SymbolChance {
     BitChance bit_zero;
     BitChance bit_sign;
-    BitChance bit_exp[bits-1];
+    BitChance bit_exp[(bits-1) * 2];
     BitChance bit_mant[bits];
 
 public:
@@ -109,7 +112,7 @@ public:
     // all exp bits 0         -> int(log2(val)) == 0  [ val == 1 ]
     // exp bits up to i are 1 -> int(log2(val)) == i+1
     BitChance inline &bitExp(int i)  {
-        assert(i >= 0 && i < bits-1);
+        assert(i >= 0 && i < 2*(bits-1));
         return bit_exp[i];
     }
     BitChance inline &bitMant(int i) {
@@ -135,7 +138,8 @@ public:
         bitSign().set_12bit(SIGN_CHANCE);
 //        printf("bits: %i\n",bits);
         for (int i=0; i<bits-1; i++) {
-            bitExp(i).set_12bit(EXP_CHANCES[i]);
+            bitExp(2*i).set_12bit(EXP_CHANCES[i]);
+            bitExp(2*i+1).set_12bit(EXP_CHANCES[i]);
         }
         for (int i=0; i<bits; i++) {
             bitMant(i).set_12bit(MANT_CHANCES[i]);
@@ -178,44 +182,46 @@ template <int bits, typename SymbolCoder> int reader(SymbolCoder& coder, int min
     if (min == max) return min;
 
     bool sign;
-    if (max >= 0 && min <= 0) {
+    assert(min <= 0 && max >= 0); // should always be the case, because guess should always be in valid range
+
       if (coder.read(BIT_ZERO)) return 0;
       if (min < 0) {
         if (max > 0) {
-                sign = coder.read(BIT_SIGN);
-                if (sign) min = 1; else max = -1;
-        } else {sign = false; max=-1;}
-      } else {sign = true; min=1;}
-    } else {
-        if (min<0) sign = false;
-        else sign = true;
-    }
+          sign = coder.read(BIT_SIGN);
+        } else {sign = false; }
+      } else {sign = true; }
 
-    const int amin = (sign? min : -max);
+    const int amin = 1;
     const int amax = (sign? max : -min);
 
     const int emax = maniac::util::ilog2(amax);
     int e = maniac::util::ilog2(amin);
 
+    //for (; e < emax; e++) {
     for (; e < emax; e++) {
         // if exponent >e is impossible, we are done
-        if ((1 << (e+1)) > amax) break;
-        if (coder.read(BIT_EXP,e)) break;
+        // actually that cannot happen
+        //if ((1 << (e+1)) > amax) break;
+        if (coder.read(BIT_EXP,(e<<1)+sign)) break;
     }
 
     int have = (1 << e);
     int left = have-1;
     for (int pos = e; pos>0;) {
-        int bit = 1;
-        left ^= (1 << (--pos));
+        //int bit = 1;
+        //left ^= (1 << (--pos));
+        left >>= 1; pos--;
         int minabs1 = have | (1<<pos);
         int maxabs0 = have | left;
         if (minabs1 > amax) { // 1-bit is impossible
-            bit = 0;
+            //bit = 0;
+            continue;
         } else if (maxabs0 >= amin) { // 0-bit and 1-bit are both possible
-            bit = coder.read(BIT_MANT,pos);
-        }
-        have |= (bit << pos);
+            //bit = coder.read(BIT_MANT,pos);
+            if (coder.read(BIT_MANT,pos)) have = minabs1;
+        } // else 0-bit is impossible, so bit stays 1
+        else have = minabs1;
+        //have |= (bit << pos);
     }
     return (sign ? have : -have);
 }
@@ -281,12 +287,28 @@ public:
 
 #ifdef HAS_ENCODER
     void write_int(int min, int max, int value);
+    void write_int2(int min, int max, int value) {
+        ////int avg = (min+max)/2;
+        //int avg = min;
+        //write_int(min-avg,max-avg,value-avg);
+        if (min>0) write_int(0,max-min,value-min);
+        else if (max<0) write_int(min-max,0,value-max);
+        else write_int(min,max,value);
+    }
     void write_int(int nbits, int value);
 #endif
 
     int read_int(int min, int max) {
         SimpleSymbolBitCoder<BitChance, RAC, bits> bitCoder(table, ctx, rac);
         return reader<bits, SimpleSymbolBitCoder<BitChance, RAC, bits>>(bitCoder, min, max);
+    }
+    int read_int2(int min, int max) {
+        ////int avg = (min+max)/2;
+        //int avg = min;
+        //return read_int(min-avg,max-avg)+avg;
+        if (min > 0) return read_int(0,max-min)+min;
+        else if (max<0) return read_int(min-max,0)+max;
+        else return read_int(min,max);
     }
     int read_int(int nbits) {
         assert (nbits <= bits);

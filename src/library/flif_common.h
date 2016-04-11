@@ -2,21 +2,21 @@
 #define FLIF_INTERFACE_COMMON_H
 
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #include <stdint.h>
@@ -44,15 +44,20 @@ extern "C" {
     typedef struct FLIF_IMAGE FLIF_IMAGE;
 
     FLIF_DLLIMPORT FLIF_IMAGE* FLIF_API flif_create_image(uint32_t width, uint32_t height);
+    FLIF_DLLIMPORT FLIF_IMAGE* FLIF_API flif_create_image_HDR(uint32_t width, uint32_t height);
     FLIF_DLLIMPORT void FLIF_API flif_destroy_image(FLIF_IMAGE* image);
 
     FLIF_DLLIMPORT uint32_t FLIF_API flif_image_get_width(FLIF_IMAGE* image);
     FLIF_DLLIMPORT uint32_t FLIF_API flif_image_get_height(FLIF_IMAGE* image);
     FLIF_DLLIMPORT uint8_t  FLIF_API flif_image_get_nb_channels(FLIF_IMAGE* image);
     FLIF_DLLIMPORT uint32_t FLIF_API flif_image_get_frame_delay(FLIF_IMAGE* image);
+    FLIF_DLLIMPORT void FLIF_API flif_image_set_frame_delay(FLIF_IMAGE* image, uint32_t delay);
 
     FLIF_DLLIMPORT void FLIF_API flif_image_write_row_RGBA8(FLIF_IMAGE* image, uint32_t row, const void* buffer, size_t buffer_size_bytes);
     FLIF_DLLIMPORT void FLIF_API flif_image_read_row_RGBA8(FLIF_IMAGE* image, uint32_t row, void* buffer, size_t buffer_size_bytes);
+
+    FLIF_DLLIMPORT void FLIF_API flif_image_write_row_RGBA16(FLIF_IMAGE* image, uint32_t row, const void* buffer, size_t buffer_size_bytes);
+    FLIF_DLLIMPORT void FLIF_API flif_image_read_row_RGBA16(FLIF_IMAGE* image, uint32_t row, void* buffer, size_t buffer_size_bytes);
 
     FLIF_DLLIMPORT void FLIF_API flif_free_memory(void* buffer);
 

@@ -1,19 +1,19 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #pragma once
@@ -34,22 +34,23 @@ protected:
     int nb_colors;
 public:
     ColorRangesPalette(const ColorRanges *rangesIn, const int nb) : ranges(rangesIn), nb_colors(nb) { }
-    bool isStatic() const { return false; }
-    int numPlanes() const { return ranges->numPlanes(); }
+    bool isStatic() const override { return false; }
+    int numPlanes() const override { return ranges->numPlanes(); }
 
-    ColorVal min(int p) const { if (p<3) return 0; else return ranges->min(p); }
-    ColorVal max(int p) const { switch(p) {
+    ColorVal min(int p) const override { if (p<3) return 0; else return ranges->min(p); }
+    ColorVal max(int p) const override { switch(p) {
                                         case 0: return 0;
                                         case 1: return nb_colors-1;
                                         case 2: return 0;
                                         default: return ranges->max(p);
                                          };
                               }
-    void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const {
+    void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const override {
          if (p==1) { minv=0; maxv=nb_colors-1; return;}
          else if (p<3) { minv=0; maxv=0; return;}
          else ranges->minmax(p,pp,minv,maxv);
     }
+    const ColorRanges* previous() const override { return ranges; }
 
 };
 
@@ -63,11 +64,11 @@ protected:
     bool ordered_palette;
 
 public:
-    void configure(const int setting) {
+    void configure(const int setting) override {
         if (setting>0) { ordered_palette=true; max_palette_size = setting;}
         else {ordered_palette=false; max_palette_size = -setting;}
     }
-    bool init(const ColorRanges *srcRanges) {
+    bool init(const ColorRanges *srcRanges) override {
         if (srcRanges->numPlanes() < 3) return false;
         if (srcRanges->max(0) == 0 && srcRanges->max(2) == 0 &&
             srcRanges->numPlanes() > 3 && srcRanges->min(3) == 1 && srcRanges->max(3) == 1) return false; // already did PLA!
@@ -77,11 +78,12 @@ public:
         return true;
     }
 
-    const ColorRanges *meta(Images& images, const ColorRanges *srcRanges) {
+    const ColorRanges *meta(Images& images, const ColorRanges *srcRanges) override {
         for (Image& image : images) image.palette=true;
         return new ColorRangesPalette(srcRanges, Palette_vector.size());
     }
-    void invData(Images& images) const {
+    void invData(Images& images) const override {
+//        v_printf(5,"invData Palette\n");
         for (Image& image : images) {
           image.undo_make_constant_plane(0);
           image.undo_make_constant_plane(1); // only needed when there is only one palette color, so plane 1 is also constant
@@ -99,7 +101,7 @@ public:
     }
 
 #ifdef HAS_ENCODER
-    bool process(const ColorRanges *, const Images &images) {
+    bool process(const ColorRanges *, const Images &images) override {
         if (ordered_palette) {
           std::set<Color> Palette;
           for (const Image& image : images)
@@ -131,7 +133,7 @@ public:
 //        printf("Palette size: %lu\n",Palette.size());
         return true;
     }
-    void data(Images& images) const {
+    void data(Images& images) const override {
 //        printf("TransformPalette::data\n");
         for (Image& image : images) {
           for (uint32_t r=0; r<image.rows(); r++) {
@@ -148,28 +150,28 @@ public:
           image.make_constant_plane(2,0);
         }
     }
-    void save(const ColorRanges *srcRanges, RacOut<IO> &rac) const {
+    void save(const ColorRanges *srcRanges, RacOut<IO> &rac) const override {
         SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> coder(rac);
         SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> coderY(rac);
         SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> coderI(rac);
         SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> coderQ(rac);
-        coder.write_int(1, MAX_PALETTE_SIZE, Palette_vector.size());
+        coder.write_int2(1, MAX_PALETTE_SIZE, Palette_vector.size());
 //        printf("Saving %lu colors: ", Palette_vector.size());
         prevPlanes pp(2);
         int sorted=(ordered_palette? 1 : 0);
-        coder.write_int(0, 1, sorted);
+        coder.write_int2(0, 1, sorted);
         if (sorted) {
             Color min(srcRanges->min(0), srcRanges->min(1), srcRanges->min(2));
             Color max(srcRanges->max(0), srcRanges->max(1), srcRanges->max(2));
             Color prev(-1,-1,-1);
             for (Color c : Palette_vector) {
                 ColorVal Y=std::get<0>(c);
-                coderY.write_int(std::get<0>(min), std::get<0>(max), Y);
+                coderY.write_int2(std::get<0>(min), std::get<0>(max), Y);
                 pp[0]=Y; srcRanges->minmax(1,pp,std::get<1>(min), std::get<1>(max));
                 ColorVal I=std::get<1>(c);
-                coderI.write_int((std::get<0>(prev) == Y ? std::get<1>(prev): std::get<1>(min)), std::get<1>(max), I);
+                coderI.write_int2((std::get<0>(prev) == Y ? std::get<1>(prev): std::get<1>(min)), std::get<1>(max), I);
                 pp[1]=I; srcRanges->minmax(2,pp,std::get<2>(min), std::get<2>(max));
-                coderQ.write_int(std::get<2>(min), std::get<2>(max), std::get<2>(c));
+                coderQ.write_int2(std::get<2>(min), std::get<2>(max), std::get<2>(c));
                 std::get<0>(min) = std::get<0>(c);
                 prev = c;
             }
@@ -178,12 +180,12 @@ public:
             for (Color c : Palette_vector) {
                 ColorVal Y=std::get<0>(c);
                 srcRanges->minmax(0,pp,min,max);
-                coderY.write_int(min,max,Y);
+                coderY.write_int2(min,max,Y);
                 pp[0]=Y; srcRanges->minmax(1,pp,min,max);
                 ColorVal I=std::get<1>(c);
-                coderI.write_int(min, max, I);
+                coderI.write_int2(min, max, I);
                 pp[1]=I; srcRanges->minmax(2,pp,min,max);
-                coderQ.write_int(min, max, std::get<2>(c));
+                coderQ.write_int2(min, max, std::get<2>(c));
 //                printf("YIQ(%i,%i,%i)\t", std::get<0>(c), std::get<1>(c), std::get<2>(c));
             }
         }
@@ -192,25 +194,25 @@ public:
         if (!ordered_palette) v_printf(5,"Unsorted");
     }
 #endif
-    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
+    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) override {
         SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> coder(rac);
         SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> coderY(rac);
         SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> coderI(rac);
         SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> coderQ(rac);
-        long unsigned size = coder.read_int(1, MAX_PALETTE_SIZE);
+        long unsigned size = coder.read_int2(1, MAX_PALETTE_SIZE);
 //        printf("Loading %lu colors: ", size);
         prevPlanes pp(2);
-        int sorted = coder.read_int(0,1);
+        int sorted = coder.read_int2(0,1);
         if (sorted) {
             Color min(srcRanges->min(0), srcRanges->min(1), srcRanges->min(2));
             Color max(srcRanges->max(0), srcRanges->max(1), srcRanges->max(2));
             Color prev(-1,-1,-1);
             for (unsigned int p=0; p<size; p++) {
-                ColorVal Y=coderY.read_int(std::get<0>(min), std::get<0>(max));
+                ColorVal Y=coderY.read_int2(std::get<0>(min), std::get<0>(max));
                 pp[0]=Y; srcRanges->minmax(1,pp,std::get<1>(min), std::get<1>(max));
-                ColorVal I=coderI.read_int((std::get<0>(prev) == Y ? std::get<1>(prev): std::get<1>(min)), std::get<1>(max));
+                ColorVal I=coderI.read_int2((std::get<0>(prev) == Y ? std::get<1>(prev): std::get<1>(min)), std::get<1>(max));
                 pp[1]=I; srcRanges->minmax(2,pp,std::get<2>(min), std::get<2>(max));
-                ColorVal Q=coderQ.read_int(std::get<2>(min), std::get<2>(max));
+                ColorVal Q=coderQ.read_int2(std::get<2>(min), std::get<2>(max));
                 Color c(Y,I,Q);
                 Palette_vector.push_back(c);
                 std::get<0>(min) = std::get<0>(c);
@@ -220,11 +222,11 @@ public:
             ColorVal min, max;
             for (unsigned int p=0; p<size; p++) {
                 srcRanges->minmax(0,pp,min,max);
-                ColorVal Y=coderY.read_int(min,max);
+                ColorVal Y=coderY.read_int2(min,max);
                 pp[0]=Y; srcRanges->minmax(1,pp,min,max);
-                ColorVal I=coderI.read_int(min,max);
+                ColorVal I=coderI.read_int2(min,max);
                 pp[1]=I; srcRanges->minmax(2,pp,min,max);
-                ColorVal Q=coderQ.read_int(min,max);
+                ColorVal Q=coderQ.read_int2(min,max);
                 Color c(Y,I,Q);
                 Palette_vector.push_back(c);
 //                printf("YIQ(%i,%i,%i)\t", std::get<0>(c), std::get<1>(c), std::get<2>(c));

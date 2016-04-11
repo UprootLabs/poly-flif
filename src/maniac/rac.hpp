@@ -1,19 +1,19 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #pragma once
@@ -30,7 +30,7 @@
 /* RAC configuration for 24-bit RAC */
 class RacConfig24 {
 public:
-    typedef uint32_t data_t;
+    typedef uint_fast32_t data_t;
     static const data_t MAX_RANGE_BITS = 24;
     static const data_t MIN_RANGE_BITS = 16;
     static const data_t MIN_RANGE = (1UL << MIN_RANGE_BITS);
@@ -39,10 +39,12 @@ public:
     static inline data_t chance_12bit_chance(int b12, data_t range) {
         assert(b12 > 0);
         assert((b12 >> 12) == 0);
-        // We want to compute (range * b12 + 0x800) >> 12.
-        // Unfortunately, this can overflow the 32-bit data type, so split range
+        // We want to compute (range * b12 + 0x800) >> 12. On 64-bit architectures this is no problem
+        if (sizeof(data_t) > 4) return (range * b12 + 0x800) >> 12;
+        // Unfortunately, this can overflow the 32-bit data type on 32-bit architectures, so split range
         // in its lower and upper 12 bits, and compute separately.
-        return ((((range & 0xFFF) * b12 + 0x800) >> 12) + ((range >> 12) * b12));
+        else return ((((range & 0xFFF) * b12 + 0x800) >> 12) + ((range >> 12) * b12));
+        // (no worries, the compiler eliminates this branching)
     }
 };
 
@@ -58,9 +60,10 @@ private:
     rac_t range;
     rac_t low;
 private:
-    int read_catch_eof() {
-        int c = io.getc();
-        if(c == io.EOS) return 0;
+    rac_t read_catch_eof() {
+        rac_t c = io.getc();
+        // no reason to branch here to catch end-of-stream, just return garbage (0xFF I guess) if a premature EOS happens
+        //if(c == io.EOS) return 0;
         return c;
     }
     void inline input() {
@@ -81,15 +84,15 @@ private:
 #endif
         assert(chance > 0);
         assert(chance < range);
-        if (low >= range - chance) {
-            low -= range - chance;
+        if (low >= range-chance) {
+            low -= range-chance;
             range = chance;
             input();
-            return 1;
+            return true;
         } else {
             range -= chance;
             input();
-            return 0;
+            return false;
         }
     }
 public:

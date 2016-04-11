@@ -2,7 +2,8 @@
 
 #include "transform.hpp"
 
-#include "yiq.hpp"
+#include "ycocg.hpp"
+//#include "yc1c2.hpp"
 #include "bounds.hpp"
 #include "colorbuckets.hpp"
 #include "palette.hpp"
@@ -13,27 +14,28 @@
 #include "framecombine.hpp"
 
 template <typename IO>
-Transform<IO> *create_transform(std::string desc)
-{
+std::unique_ptr<Transform<IO>> create_transform(std::string desc) {
     if (desc == "YCoCg")
-        return new TransformYIQ<IO>();
+        return make_unique<TransformYCoCg<IO>>();
+// use this if you just want to quickly try YC1C2
+//        return new TransformYCC<IO>();
     if (desc == "Bounds")
-        return new TransformBounds<IO>();
+        return make_unique<TransformBounds<IO>>();
     if (desc == "Color_Buckets")
-        return new TransformCB<IO>();
+        return make_unique<TransformCB<IO>>();
     if (desc == "Palette")
-        return new TransformPalette<IO>();
+        return make_unique<TransformPalette<IO>>();
     if (desc == "Palette_Alpha")
-        return new TransformPaletteA<IO>();
+        return make_unique<TransformPaletteA<IO>>();
     if (desc == "Channel_Compact")
-        return new TransformPaletteC<IO>();
+        return make_unique<TransformPaletteC<IO>>();
     if (desc == "Frame_Shape")
-        return new TransformFrameShape<IO>();
+        return make_unique<TransformFrameShape<IO>>();
     if (desc == "Duplicate_Frame")
-        return new TransformFrameDup<IO>();
+        return make_unique<TransformFrameDup<IO>>();
     if (desc == "Frame_Lookback")
-        return new TransformFrameCombine<IO>();
+        return make_unique<TransformFrameCombine<IO>>();
     return NULL;
 }
 
-template Transform<BufferIO> *create_transform(std::string desc);
+template std::unique_ptr<Transform<BufferIO>> create_transform(std::string desc);

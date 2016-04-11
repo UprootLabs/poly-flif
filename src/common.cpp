@@ -1,39 +1,50 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #include "common.hpp"
 
-const std::vector<std::string> transforms = {"Channel_Compact","YCoCg","Bounds","Palette_Alpha","Palette","Color_Buckets",
-                                             "Duplicate_Frame","Frame_Shape","Frame_Lookback","Unknown/Reserved"};
-uint8_t transform_l = 0;
+// These are the names of the transformations done before encoding / after decoding
+const std::vector<std::string> transforms = {"Channel_Compact", "YCoCg", "?? YCbCr ??", "Bounds",  // color space / ranges
+                                             "Palette_Alpha", "Palette", "Color_Buckets",  // sparse-color transforms
+                                             "?? DCT ??", "?? DWT ??", // JPEG-style transforms, not implemented (but maybe in future versions?)
+                                             "Duplicate_Frame", "Frame_Shape", "Frame_Lookback", // animation-related transforms
+                                             "?? Other ??" };
+// Plenty of room for future extensions: transform "Other" can be used to encode identifiers of arbitrary many other transforms
 
+// Some global variables used to show progress and to know when to stop a partial/progressive decode
+// (TODO: avoid global variables)
 int64_t pixels_todo = 0;
 int64_t pixels_done = 0;
 int progressive_qual_target = 0;
 int progressive_qual_shown = -1;
 
 
-const int PLANE_ORDERING[] = {4,3,0,1,2}; // FRA, A, Y, I, Q
+// The order in which the planes are encoded.
+// Lookback (animations-only, value refers to a previous frame) has to be first, because all other planes are not encoded if lookback != 0
+// Alpha has to be next, because for fully transparent A=0 pixels, the other planes are not encoded
+// Y (luma) is next (the first channel for still opaque images), because it is perceptually most important
+// Co and Cg are in that order because Co is perceptually slightly more important than Cg [citation needed]
+const int PLANE_ORDERING[] = {4,3,0,1,2}; // FRA (lookback), A, Y, Co, Cg
 
+
+// MANIAC property information for non-interlaced images
 const int NB_PROPERTIES_scanlines[] = {7,8,9,7,7};
 const int NB_PROPERTIES_scanlinesA[] = {8,9,10,7,7};
-
-
 void initPropRanges_scanlines(Ranges &propRanges, const ColorRanges &ranges, int p) {
     propRanges.clear();
     int min = ranges.min(p);
@@ -56,48 +67,13 @@ void initPropRanges_scanlines(Ranges &propRanges, const ColorRanges &ranges, int
 }
 
 ColorVal predict_and_calcProps_scanlines(Properties &properties, const ColorRanges *ranges, const Image &image, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const ColorVal fallback) {
-    ColorVal guess;
-    int which = 0;
-    int index=0;
-    if (p < 3) {
-      for (int pp = 0; pp < p; pp++) {
-        properties[index++] = image(pp,r,c);
-      }
-      if (image.numPlanes()>3) properties[index++] = image(3,r,c);
-    }
-    ColorVal left = (c>0 ? image(p,r,c-1) : (r > 0 ? image(p, r-1, c) : fallback));
-    ColorVal top = (r>0 ? image(p,r-1,c) : left);
-    ColorVal topleft = (r>0 && c>0 ? image(p,r-1,c-1) : (r > 0 ? top : left));
-    ColorVal gradientTL = left + top - topleft;
-    guess = median3(gradientTL, left, top);
-    ranges->snap(p,properties,min,max,guess);
-    assert(min >= ranges->min(p));
-    assert(max <= ranges->max(p));
-    assert(guess >= min);
-    assert(guess <= max);
-    if (guess == gradientTL) which = 0;
-    else if (guess == left) which = 1;
-    else if (guess == top) which = 2;
-
-    properties[index++] = guess;
-    properties[index++] = which;
-
-    if (c > 0 && r > 0) { properties[index++] = left - topleft; properties[index++] = topleft - top; }
-                 else   { properties[index++] = 0; properties[index++] = 0;  }
-
-    if (c+1 < image.cols() && r > 0) properties[index++] = top - image(p,r-1,c+1); // top - topright
-                 else   properties[index++] = 0;
-    if (r > 1) properties[index++] = image(p,r-2,c)-top;    // toptop - top
-         else properties[index++] = 0;
-    if (c > 1) properties[index++] = image(p,r,c-2)-left;    // leftleft - left
-         else properties[index++] = 0;
-    return guess;
+    return predict_and_calcProps_scanlines_plane<GeneralPlane,false>(properties,ranges,image,image.getPlane(p),p,r,c,min,max, fallback);
 }
 
 
-const int NB_PROPERTIES[] = {8,9,8,8,8};
-const int NB_PROPERTIESA[] = {9,10,9,8,8};
-
+// MANIAC property information for interlaced images
+const int NB_PROPERTIES[] = {8,10,9,8,8};
+const int NB_PROPERTIESA[] = {9,11,10,8,8};
 void initPropRanges(Ranges &propRanges, const ColorRanges &ranges, int p) {
     propRanges.clear();
     int min = ranges.min(p);
@@ -109,86 +85,75 @@ void initPropRanges(Ranges &propRanges, const ColorRanges &ranges, int p) {
       }
       if (ranges.numPlanes()>3) propRanges.push_back(std::make_pair(ranges.min(3), ranges.max(3)));  // pixel on alpha plane
     }
-    propRanges.push_back(std::make_pair(mind,maxd)); // neighbor A - neighbor B   (top-bottom or left-right)
-    propRanges.push_back(std::make_pair(min,max));   // guess (median of 3)
-    propRanges.push_back(std::make_pair(0,2));       // which predictor was it
-    propRanges.push_back(std::make_pair(mind,maxd));
-    propRanges.push_back(std::make_pair(mind,maxd));
-    propRanges.push_back(std::make_pair(mind,maxd));
 
-    if (p < 2 || p >= 3) {
-      propRanges.push_back(std::make_pair(mind,maxd));
-      propRanges.push_back(std::make_pair(mind,maxd));
+    //if (p<1 || p>2) 
+    propRanges.push_back(std::make_pair(0,2));       // median predictor: which of the three values is the median?
+
+    if (p==1 || p==2) propRanges.push_back(std::make_pair(ranges.min(0)-ranges.max(0),ranges.max(0)-ranges.min(0))); // luma prediction miss
+    propRanges.push_back(std::make_pair(mind,maxd)); // neighbor A - neighbor B   (top-bottom or left-right)
+    propRanges.push_back(std::make_pair(mind,maxd)); // top/left prediction miss (previous pixel)
+    propRanges.push_back(std::make_pair(mind,maxd)); // left/top prediction miss (other direction)
+    propRanges.push_back(std::make_pair(mind,maxd)); // bottom/right prediction miss
+    propRanges.push_back(std::make_pair(min,max));   // guess
+
+//    propRanges.push_back(std::make_pair(mind,maxd));  // left - topleft
+//    propRanges.push_back(std::make_pair(mind,maxd));  // topleft - top
+
+//    if (p == 0 || p > 2)
+//      propRanges.push_back(std::make_pair(mind,maxd)); // top - topright
+    if (p != 2) {
+      propRanges.push_back(std::make_pair(mind,maxd)); // toptop - top
+      propRanges.push_back(std::make_pair(mind,maxd)); // leftleft - left
     }
 }
 
 // Actual prediction. Also sets properties. Property vector should already have the right size before calling this.
-ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max) ATTRIBUTE_HOT;
-ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max) {
-    ColorVal guess;
-    int which = 0;
-    int index = 0;
+// This is a fall-back function which should be replaced by direct calls to the specific predict_and_calcProps_plane function
+ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor) ATTRIBUTE_HOT;
+ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor) {
+    image.getPlane(0).prepare_zoomlevel(z);
+    image.getPlane(p).prepare_zoomlevel(z);
 
-    if (p < 3) {
-      for (int pp = 0; pp < p; pp++) {
-        properties[index++] = image(pp,z,r,c);
-      }
-      if (image.numPlanes()>3) properties[index++] = image(3,z,r,c);
-    }
-    ColorVal left;
-    ColorVal top;
-    ColorVal topleft;
-    ColorVal topright;
-    if (z%2 == 0) { // filling horizontal lines
-      top = image(p,z,r-1,c);
-      left = (c>0 ? image(p,z,r,c-1) : top);
-      topleft = (c>0 ? image(p,z,r-1,c-1) : top);
-      topright = (c+1 < image.cols(z) ? image(p,z,r-1,c+1) : top);
-      const ColorVal gradientTL = left + top - topleft;
-      const bool bottomPresent = r+1 < image.rows(z);
-      const ColorVal bottom = (bottomPresent ? image(p,z,r+1,c) : left);
-      const ColorVal bottomleft = (bottomPresent && c>0 ? image(p,z,r+1,c-1) : bottom);
-      const ColorVal gradientBL = left + bottom - bottomleft;
-      const ColorVal avg = (top + bottom)>>1;
-      guess = median3(gradientTL, gradientBL, avg);
-      ranges->snap(p,properties,min,max,guess);
-      if (guess == avg) which = 0;
-      else if (guess == gradientTL) which = 1;
-      else if (guess == gradientBL) which = 2;
-      properties[index++] = top-bottom;
-    } else { // filling vertical lines
-      left = image(p,z,r,c-1);
-      top = (r>0 ? image(p,z,r-1,c) : left);
-      topleft = (r>0 ? image(p,z,r-1,c-1) : left);
-      const bool rightPresent = c+1 < image.cols(z);
-      const ColorVal right = (rightPresent ? image(p,z,r,c+1) : top);
-      topright = (r>0 && rightPresent ? image(p,z,r-1,c+1) : right);
-      const ColorVal gradientTL = left + top - topleft;
-      const ColorVal gradientTR = right + top - topright;
-      ColorVal avg = (left + right)>>1;
-      guess = median3(gradientTL, gradientTR, avg);
-      ranges->snap(p,properties,min,max,guess);
-      if (guess == avg) which = 0;
-      else if (guess == gradientTL) which = 1;
-      else if (guess == gradientTR) which = 2;
-      properties[index++] = left-right;
-    }
-    properties[index++]=guess;
-    properties[index++]=which;
-
-    if (c > 0 && r > 0) { properties[index++]=left - topleft; properties[index++]=topleft - top; }
-                 else   { properties[index++]=0; properties[index++]=0; }
-
-    if (c+1 < image.cols(z) && r > 0) properties[index++]=top - topright;
-                 else   properties[index++]=0;
-
-    if (p < 2 || p >= 3) {
-     if (r > 1) properties[index++]=image(p,z,r-2,c)-top;    // toptop - top
-         else properties[index++]=0;
-     if (c > 1) properties[index++]=image(p,z,r,c-2)-left;    // leftleft - left
-         else properties[index++]=0;
-    }
-    return guess;
+#ifdef SUPPORT_HDR
+    if (image.getDepth() > 8) {
+     switch(p) {
+      case 0:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,true,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,false,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      case 1:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,true,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,false,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      case 2:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,true,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,false,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      case 3:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,true,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,false,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      default:
+        assert(p==4);
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_16u>,true,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_16u>,false,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+     }
+    } else
+#endif
+     switch(p) {
+      case 0:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,true,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,false,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      case 1:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,true,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,false,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      case 2:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,true,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,false,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      case 3:
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,true,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,false,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+      default:
+        assert(p==4);
+        if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,true,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,false,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+     }
 }
 
 int plane_zoomlevels(const Image &image, const int beginZL, const int endZL) {

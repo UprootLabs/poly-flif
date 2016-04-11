@@ -1,19 +1,19 @@
 /*
- FLIF - Free Lossless Image Format
- Copyright (C) 2010-2015  Jon Sneyers & Pieter Wuille, LGPL v3+
+FLIF - Free Lossless Image Format
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Lesser General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+Copyright 2010-2016, Jon Sneyers & Pieter Wuille
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Lesser General Public License for more details.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
- You should have received a copy of the GNU Lesser General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 #pragma once
@@ -31,12 +31,12 @@ protected:
     int nb_colors[4];
 public:
     ColorRangesPaletteC(const ColorRanges *rangesIn, const int nb[4]) : ranges(rangesIn) { for (int i=0; i<4; i++) nb_colors[i] = nb[i]; }
-    bool isStatic() const { return true; }
-    int numPlanes() const { return ranges->numPlanes(); }
+    bool isStatic() const override { return true; }
+    int numPlanes() const override { return ranges->numPlanes(); }
 
-    ColorVal min(int p) const { return 0; }
-    ColorVal max(int p) const { return nb_colors[p]; }
-    void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const {
+    ColorVal min(int p) const override { return 0; }
+    ColorVal max(int p) const override { return nb_colors[p]; }
+    void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const override {
          minv=0; maxv=nb_colors[p];
     }
 
@@ -50,11 +50,12 @@ protected:
     std::vector<ColorVal> CPalette_inv_vector[4];
 
 public:
-    bool init(const ColorRanges *) {
+    bool init(const ColorRanges *srcRanges) override {
+        if (srcRanges->numPlanes()>4) return false; // FRA should always be done after CC, this is just to catch bad input
         return true;
     }
 
-    const ColorRanges *meta(Images& images, const ColorRanges *srcRanges) {
+    const ColorRanges *meta(Images& images, const ColorRanges *srcRanges) override {
         int nb[4] = {};
         v_printf(4,"[");
         for (int i=0; i<srcRanges->numPlanes(); i++) {
@@ -67,7 +68,7 @@ public:
         return new ColorRangesPaletteC(srcRanges, nb);
     }
 
-    void invData(Images& images) const {
+    void invData(Images& images) const override {
         for (Image& image : images) {
          for (int p=0; p<image.numPlanes(); p++) {
 //          const int stretch = (CPalette_vector[p].size()>64 ? 0 : 2);
@@ -83,7 +84,7 @@ public:
     }
 
 #if HAS_ENCODER
-    bool process(const ColorRanges *srcRanges, const Images &images) {
+    bool process(const ColorRanges *srcRanges, const Images &images) override {
         std::set<ColorVal> CPalette;
         bool nontrivial=false;
         for (int p=0; p<srcRanges->numPlanes(); p++) {
@@ -95,7 +96,10 @@ public:
             }
           }
          }
-         if ((int)CPalette.size() <= srcRanges->max(p)-srcRanges->min(p)) nontrivial = true;
+//         if ((int)CPalette.size() <= srcRanges->max(p)-srcRanges->min(p)) nontrivial = true;
+         // if on all channels, less than 10% of the range can be compacted away, it's probably a bad idea to do the compaction
+         // since the gain from a smaller RGB range will probably not compensate for the disturbing of the YIQ transform
+         if ((int)CPalette.size() * 10 <= 9 * (srcRanges->max(p)-srcRanges->min(p))) nontrivial = true;
          if (CPalette.size() < 10) {
            // add up to 10 shades of gray
            ColorVal prev=0;
@@ -114,7 +118,7 @@ public:
         }
         return nontrivial;
     }
-    void data(Images& images) const {
+    void data(Images& images) const override {
         for (Image& image : images) {
          for (int p=0; p<image.numPlanes(); p++) {
 //          const int stretch = (CPalette_vector[p].size()>64 ? 0 : 2);
@@ -129,7 +133,7 @@ public:
          }
         }
     }
-    void save(const ColorRanges *srcRanges, RacOut<IO> &rac) const {
+    void save(const ColorRanges *srcRanges, RacOut<IO> &rac) const override {
         SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> coder(rac);
         for (int p=0; p<srcRanges->numPlanes(); p++) {
           coder.write_int(0, srcRanges->max(p)-srcRanges->min(p), CPalette_vector[p].size()-1);
@@ -143,7 +147,7 @@ public:
         }
     }
 #endif
-    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) {
+    bool load(const ColorRanges *srcRanges, RacIn<IO> &rac) override {
         SimpleSymbolCoder<FLIFBitChanceMeta, RacIn<IO>, 18> coder(rac);
         for (int p=0; p<srcRanges->numPlanes(); p++) {
           unsigned int nb = coder.read_int(0, srcRanges->max(p)-srcRanges->min(p)) + 1;
