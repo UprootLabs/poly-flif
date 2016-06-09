@@ -223,6 +223,7 @@ template <typename pixel_t> class Plane final : public GeneralPlane {
 
 public:
     Plane(uint32_t w, uint32_t h, ColorVal color=0, int scale = 0) : data_vec(PAD(SCALED(w)*SCALED(h)), color), width(SCALED(w)), height(SCALED(h)), s(scale) {
+#if 0
         //size_t space = data_vec.size()*sizeof(pixel_t);
         void *ptr = data_vec.data();
         //std::align (C++11) is not in GCC or Clang (the versions used by Travis-CI at least) for some stupid reason
@@ -230,6 +231,9 @@ public:
         uintptr_t diff = (uintptr_t)ptr % 16;
         data = static_cast<pixel_t*>((diff == 0) ? ptr : ((char*)ptr) + (16-diff));
         assert(data != nullptr);
+#else
+        data = data_vec.data();
+#endif
     }
     void clear() {
         data_vec.clear();
