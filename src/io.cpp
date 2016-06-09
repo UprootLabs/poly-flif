@@ -17,8 +17,16 @@ limitations under the License.
 */
 
 #ifdef DEBUG
+#include <emscripten.h>
+
 #include <stdio.h>
 #include <stdarg.h>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
+
 #include "io.hpp"
 #endif
 
@@ -51,9 +59,16 @@ void v_printf(const int v, const char *format, ...) {
     if (verbosity < v) return;
     va_list args;
     va_start(args, format);
-    vfprintf(stdout, format, args);
-    fflush(stdout);
+    const auto N = 1024 * 4;
+    char str[N];
+    const auto written = vsprintf(str, format, args);
     va_end(args);
+    if (written >= 0 && written < N) {
+      EM_ASM_({
+        console.log(Pointer_stringify($0));
+      }, str);
+    }
+
 }
 #endif
 

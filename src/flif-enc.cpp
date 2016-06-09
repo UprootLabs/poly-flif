@@ -217,7 +217,10 @@ void flif_encode_FLIF2_inner(IO& io, Rac& rac, std::vector<Coder> &coders, const
                     if (FRA && p<4 && image(4,z,r,c) > 0) continue;
                     ColorVal guess = predict_and_calcProps(properties,ranges,image,z,p,r,c,min,max,predictor);
                     ColorVal curr = image(p,z,r,c);
-                    if (FRA && p==4 && max > fr) max = fr;
+                    if (FRA) {
+                        if (p==4 && max > fr) max = fr;
+                        if (guess>max || guess<min) guess = min;
+                    }
                     assert (curr <= max); assert (curr >= min);
                     coders[p].write_int(properties, min - guess, max - guess, curr - guess);
               }
@@ -240,7 +243,10 @@ void flif_encode_FLIF2_inner(IO& io, Rac& rac, std::vector<Coder> &coders, const
                     if (FRA && p<4 && image(4,z,r,c) > 0) continue;
                     ColorVal guess = predict_and_calcProps(properties,ranges,image,z,p,r,c,min,max,predictor);
                     ColorVal curr = image(p,z,r,c);
-                    if (FRA && p==4 && max > fr) max = fr;
+                    if (FRA) {
+                        if (p==4 && max > fr) max = fr;
+                        if (guess>max || guess<min) guess = min;
+                    }
                     assert (curr <= max); assert (curr >= min);
                     coders[p].write_int(properties, min - guess, max - guess, curr - guess);
               }
@@ -285,7 +291,7 @@ void flif_encode_FLIF2_pass(IO& io, Rac &rac, const Images &images, const ColorR
     }
 }
 
-void flif_encode_FLIF2_interpol_zero_alpha(Images &images, const ColorRanges * ranges, const int beginZL, const int endZL)
+void flif_encode_FLIF2_interpol_zero_alpha(Images &images, const ColorRanges * ranges, const int beginZL, const int endZL, const int predictor)
 {
     const std::vector<ColorVal> greys = computeGreys(ranges);
 
@@ -306,14 +312,14 @@ void flif_encode_FLIF2_interpol_zero_alpha(Images &images, const ColorRanges * r
         // horizontal: scan the odd rows
           for (uint32_t r = 1; r < image.rows(z); r += 2) {
             for (uint32_t c = 0; c < image.cols(z); c++) {
-               if (image(3,z,r,c) == 0) image.set(p,z,r,c, predict(image,z,p,r,c));
+               if (image(3,z,r,c) == 0) image.set(p,z,r,c, predict(image,z,p,r,c,predictor));
             }
           }
       } else {
         // vertical: scan the odd columns
           for (uint32_t r = 0; r < image.rows(z); r++) {
             for (uint32_t c = 1; c < image.cols(z); c += 2) {
-               if (image(3,z,r,c) == 0) image.set(p,z,r,c, predict(image,z,p,r,c));
+               if (image(3,z,r,c) == 0) image.set(p,z,r,c, predict(image,z,p,r,c,predictor));
             }
           }
       }
@@ -348,9 +354,9 @@ ColorVal flif_make_lossy(int min, int max, ColorVal value, int loss) {
     if (min == max) return min;
     if (value == 0) return 0;
 
-    int sign = (value > 0 ? 1 : 0);
-    if (sign && min <= 0) min = 1;
-    if (!sign && max >= 0) max = -1;
+    const int sign = (value > 0 ? 1 : 0);
+    if (sign) { if (min <= 0) min = 1; }
+    else { if(max >= 0) max = -1; }
     int a = abs(value);
     if (a < loss) return 0;
     // we are reducing precision on the mantissa by dropping least significant bits, so
@@ -695,7 +701,7 @@ template <typename IO>
 bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding,
                  int learn_repeats, int acb, int palette_size, int lookback,
                  int divisor=CONTEXT_TREE_COUNT_DIV, int min_size=CONTEXT_TREE_MIN_SUBTREE_SIZE, int split_threshold=CONTEXT_TREE_SPLIT_THRESHOLD,
-                 int cutoff=2, int alpha=19, int crc_check=-1, int loss=0, int predictor[]=NULL) {
+                 int cutoff=2, int alpha=19, int crc_check=-1, int loss=0, int predictor[]=NULL, int invisible_predictor=2) {
 
     io.fputs("FLIF");  // bytes 1-4 are fixed magic
     int numPlanes = images[0].numPlanes();
@@ -764,6 +770,8 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
     //SimpleSymbolCoder<FLIFBitChanceMeta, RacOut<IO>, 18> metaCoder(rac);
     UniformSymbolCoder<RacOut<IO>> metaCoder(rac);
 
+    metaCoder.write_int(0,1,0); // FLIF version: FLIF16
+
     v_printf(2," (%ux%u", images[0].cols(), images[0].rows());
     for (int p = 0; p < numPlanes; p++) {
         assert(image.min(p) == 0);
@@ -772,8 +780,8 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
           v_printf(3," [%i] %i bpp",p,ilog2(image.max(p)+1));
         }
     }
-    if (c=='1') v_printf(3,", %i channels, 8-bit",numPlanes);
-    if (c=='2') v_printf(3,", %i channels, 16-bit",numPlanes);
+    if (c=='1') { v_printf(3,", %i channels, 8-bit",numPlanes); }
+    else if (c=='2') { v_printf(3,", %i channels, 16-bit",numPlanes); }
     if (numFrames>1) v_printf(3,", %i frames",numFrames);
     int alphazero=0;
     if (numPlanes > 3) {
@@ -789,7 +797,6 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
            metaCoder.write_int(0, 60000, images[i].frame_delay); // time in ms between frames
         }
     }
-//    v_printf(2,"Header: %li bytes.\n", ftell(f));
 
     if (cutoff==2 && alpha==19) {
       metaCoder.write_int(0,1,0); // using default constants for cutoff/alpha
@@ -858,7 +865,11 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
       v_printf(4,"Replacing fully transparent subpixels with predicted subpixel values\n");
       switch(encoding) {
         case flifEncoding::nonInterlaced: flif_encode_scanlines_interpol_zero_alpha(images, ranges); break;
-        case flifEncoding::interlaced: flif_encode_FLIF2_interpol_zero_alpha(images, ranges, image.zooms(), 0); break;
+        case flifEncoding::interlaced:
+            v_printf(4,"Invisible pixel predictor: -H%i\n",invisible_predictor);
+            metaCoder.write_int(0,MAX_PREDICTOR,invisible_predictor);
+            flif_encode_FLIF2_interpol_zero_alpha(images, ranges, image.zooms(), 0, invisible_predictor);
+            break;
       }
     }
 
@@ -886,7 +897,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
             break;
         case flifEncoding::interlaced:
             flif_make_lossy_interlaced(images,ranges,loss,adaptive,adaptive_map);
-            if (alphazero && ranges->numPlanes() > 3 && ranges->min(3) <= 0) flif_encode_FLIF2_interpol_zero_alpha(images, ranges, image.zooms(), 0);
+            if (alphazero && ranges->numPlanes() > 3 && ranges->min(3) <= 0) flif_encode_FLIF2_interpol_zero_alpha(images, ranges, image.zooms(), 0, invisible_predictor);
             break;
       }
     } else {
@@ -946,7 +957,7 @@ bool flif_encode(IO& io, Images &images, std::vector<std::string> transDesc, fli
 }
 
 
-template bool flif_encode(FileIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha, int crc_check, int loss, int predictor[]);
-template bool flif_encode(BlobIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha, int crc_check, int loss, int predictor[]);
+template bool flif_encode(FileIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha, int crc_check, int loss, int predictor[], int invisible_predictor);
+template bool flif_encode(BlobIO& io, Images &images, std::vector<std::string> transDesc, flifEncoding encoding, int learn_repeats, int acb, int palette_size, int lookback, int divisor, int min_size, int split_threshold, int cutoff, int alpha, int crc_check, int loss, int predictor[], int invisible_predictor);
 
 #endif

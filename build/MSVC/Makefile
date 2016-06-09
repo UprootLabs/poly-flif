@@ -46,7 +46,7 @@ libflif_dec.dll: $(OBJDIR) $(LIBOBJS)
 	copy "$(LibDir)\$@" $@
 
 viewflif.exe: libflif_dec.dll
-	cl $(CFLAGS) /I$(SrcDir)\ /I$(SrcDir)\library\ /I$(sdl2dir)\include /Tp $(SrcDir)\viewflif.c /FI..\build\MSVC\$(Incdir)\sdl2v140.h /DFLIF_USE_DLL /Fd$O /Fo$O -c
+	cl $(CFLAGS) /I$(SrcDir)\ /I$(SrcDir)\library\ /I$(sdl2dir)\include /Tp $(SrcDir)\viewflif.c /DFLIF_USE_DLL /Fd$O /Fo$O -c
 	link /out:$(LibDir)\$@ $Oviewflif.obj libflif_dec.lib SDL2.lib SDL2main.lib $(LDFLAGS) /SUBSYSTEM:CONSOLE /LIBPATH:$(LibDir) /LIBPATH:$(sdl2dir)\lib\$(PLATFORM)\ 
 	copy "$(LibDir)\$@" $@
 	copy $(sdl2dir)\lib\$(PLATFORM)\SDL2.dll SDL2.dll
@@ -71,6 +71,7 @@ $(OBJDIR):
 	@if not exist "$(@)/" mkdir "$(@)"
 
 $(LibDir)\zlib.lib: $(OBJDIR)
+	@if not exist include mkdir include
 	cd $(zlibdir)
 	@nmake -f win32\Makefile.msc clean
 	nmake -f win32\Makefile.msc zlib.lib CFLAGS="$(CFLAGS) /TC /Fdzlib" ARFLAGS="$(LDFLAGS)"
@@ -80,6 +81,7 @@ $(LibDir)\zlib.lib: $(OBJDIR)
 	cd ..
 
 $(LibDir)\libpng.lib: $(LibDir)\zlib.lib
+	@if not exist include mkdir include
 	cd $(lpngdir)
 	@nmake -f scripts\Makefile.vcwin32 clean
 	nmake -f scripts\Makefile.vcwin32 libpng.lib CPPFLAGS="/I..\$(Incdir) " CFLAGS="$(CFLAGS) /TC /D_CRT_SECURE_NO_DEPRECATE /D_CRT_SECURE_NO_WARNINGS" ARFLAGS="$(LDFLAGS)"
