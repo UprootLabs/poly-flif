@@ -192,7 +192,6 @@ function imageChanged() {
 
 function bgColorChanged() {
   var bgInput = document.getElementById('bgColor');
-  console.log(bgInput.value);
   document.querySelector("#viewer-left .wrapper").style.background = bgInput.value;
   document.querySelector("#viewer-right .wrapper").style.background = bgInput.value;
 }
@@ -361,7 +360,7 @@ function handleCompareChoice(choiceIdx, forceDecode) {
 
 function decode(imageChanged) {
   if(imageChanged) {
-  resetView();
+    resetView();
   }
 
   ensureDir("/assets");
