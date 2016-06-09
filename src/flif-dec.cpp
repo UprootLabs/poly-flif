@@ -34,6 +34,7 @@ limitations under the License.
 #include "common.hpp"
 #include "bufferio.h"
 
+/*
 static int truncatedSize = -1;
 
 bool isEOF(FILE *fp) {
@@ -44,6 +45,7 @@ bool isEOF(FILE *fp) {
     return loc > truncatedSize;
   }
 }
+*/
 
 using namespace maniac::util;
 
@@ -854,6 +856,7 @@ bool flif_decode(IO& io, Images &images, int quality, int scale, uint32_t (*call
           if (numFrames < 2) return false;
         }
     }
+
     const int encoding=c/16;
     if (encoding < 1 || encoding > 2) { e_printf("Invalid or unknown FLIF encoding method\n"); return false;}
     if (scale != 1 && encoding==1 && !just_identify) { e_printf("Cannot decode non-interlaced FLIF file at lower scale!\n"); return false; }
