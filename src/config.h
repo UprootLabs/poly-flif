@@ -5,7 +5,7 @@
 /*****************************************/
 
 // define this flag if you want support for > 8 bit per channel
-#define SUPPORT_HDR 1
+// #define SUPPORT_HDR 1
 
 // include encoder related functionality in build. Disable when only interested in decoder
 #ifndef DECODER_ONLY
@@ -27,7 +27,7 @@
 /************************/
 
 // speed / binary size trade-off: 0, 1, 2  (higher number -> bigger and faster binary)
-#define LARGE_BINARY 1
+#define LARGE_BINARY 0
 
 #ifndef __clang__
 #define USE_SIMD 1
