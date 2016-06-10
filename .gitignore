@@ -1,8 +1,8 @@
-/em-out/flif.html
-/em-out/flif.html.mem
-/em-out/flif.data
-/em-out/flif.js
-/em-out/assets
+/src/em-out/flif.html
+/src/em-out/flif.html.mem
+/src/em-out/flif.data
+/src/em-out/flif.js
+/src/em-out/assets
 # build system
 obj/
 *.pyc
