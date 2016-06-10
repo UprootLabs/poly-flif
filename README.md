@@ -7,7 +7,17 @@ A browser poly fill for [FLIF](http://flif.info).
 
 Beta. Not tested on all browsers. Performance and size is still being optimised. 
 
-Current JS size: 654KB (75KB gzipped).
+## JS payload size
+
+| Configuration                 | Size  | gzipped size |
+| ----------------------------- | ----- | ------------ |
+| Default                       | 606KB | 73KB |
+| Default + Small-binary        | 460KB | 65KB |
+| No HDR Support                | 272KB | 57KB |
+| No HDR Support + Small-binary | 238KB | 54KB |
+
+In this repo, the configuration is (`DECODER_ONLY` + No-HDR-Support + Small-binary) since that is what
+is being used in the demo.
 
 ## Roadmap
 
