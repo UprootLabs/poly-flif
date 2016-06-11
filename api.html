@@ -89,6 +89,26 @@ dimensions, and the canvas element is resized to the resized dimensions.
 actual dimensions, etc).
 </p>
 
+<h3>Low Level API</h3>
+
+Example usage:
+
+<pre>
+var canvasElement = document.getElementById("...");    // get canvas element somehow
+var buffer = ...                                       // get data somehow; XHR, for example.
+
+var options = {
+  canvas: canvasElement,
+  buf:    buffer
+};
+var pf = new PolyFlif(options);
+
+var truncation = 0;                                   // in percent (0 to 100).
+var rw = 0;                                           // requested width (if 0, original image width is used)
+var rh = 0;                                           // requested height (if 0, original image height is used)
+pf.start(truncation, rw, rh);
+</pre>
+
 </div>
 
 </body>
