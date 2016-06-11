@@ -162,11 +162,6 @@ function init() {
 init();
 
 function resetView() {
-  var anims = window["flifAnims"];
-  if (anims) {
-    anims.play = false;
-  }
-
   window.viewer.parentElement.hidden = false;
   document.getElementById('pngImg').src = ""
   var canvas = document.getElementById('canvas');
@@ -359,6 +354,10 @@ function handleCompareChoice(choiceIdx, forceDecode) {
 }
 
 function decode(imageChanged) {
+  if (window['pf']) {
+    window['pf'].stop();
+  }
+
   if(imageChanged) {
     resetView();
   }
@@ -425,21 +424,10 @@ function decodeSync(bufId, info, updateChoices) {
     setLeftInfo("FLIF", retainedSize, flifSize);
 
     setTimeout(function() {
-      Module.ccall("mainy", 'number', ['number', 'number', 'string'], [retainedPercent, bufId, "/assets/"+info.name+".flif"]);
+      window['pf'] = new PolyFlif({canvas: document.getElementById('canvas'), buf: jsBuffers[bufId]});
+      window['pf'].begin(retainedPercent, 0, 0);
       if (updateChoices) {
         displayCompareChoices();
       }
-
-/*
-      if (info.category == "still") {
-        if (retainedPercent == 100) {
-          Module.setStatus("Comparing with original image");
-        } else {
-          Module.setStatus("Comparing with same sized PNG");
-        }
-      } else {
-        Module.setStatus("Viewing FLIF animation");
-      }
-*/
     }, 10);
 }
