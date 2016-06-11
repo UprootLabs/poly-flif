@@ -80,6 +80,7 @@
     </div>
 
     <script type='text/javascript' src="flif-demo.js"></script>
+    <script src="flif.js"></script>
 
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
@@ -94,11 +95,6 @@
           if (element) element.value = ''; // clear browser cache
           return function(text) {
             if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-            // These replacements are necessary if you render to raw HTML
-            //text = text.replace(/&/g, "&amp;");
-            //text = text.replace(/</g, "&lt;");
-            //text = text.replace(/>/g, "&gt;");
-            //text = text.replace('\n', '<br>', 'g');
             console.log(text);
             if (element) {
               element.value += text + "\n";
@@ -116,42 +112,19 @@
         },
         canvas: (function() {
           var canvas = document.getElementById('canvas');
-
-          // As a default initial behavior, pop up an alert when webgl context is lost. To make your
-          // application robust, you may want to override this behavior before shipping!
-          // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
           canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
-
           return canvas;
         })(),
         setStatus: function(text) {
           if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
           if (text === Module.setStatus.text) return;
-          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-          var now = Date.now();
-          if (m && now - Date.now() < 30) return; // if this is a progress update, skip it if too soon
-          if (m) {
-            text = m[1];
-            progressElement.value = parseInt(m[2])*100;
-            progressElement.max = parseInt(m[4])*100;
-            // progressElement.hidden = false;
-            spinnerElement.hidden = false;
-          } else {
-            progressElement.value = null;
-            progressElement.max = null;
-            // progressElement.hidden = true;
-            spinnerElement.hidden = true;
-            if (!text) spinnerElement.style.display = 'none';
-          }
+          progressElement.value = null;
+          progressElement.max = null;
+          spinnerElement.hidden = true;
+          spinnerElement.style.display = 'none';
           statusElement.innerHTML = text;
-        },
-        totalDependencies: 0,
-        monitorRunDependencies: function(left) {
-          this.totalDependencies = Math.max(this.totalDependencies, left);
-          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
         }
       };
-      Module.setStatus('Downloading...');
       window.onerror = function(event) {
         // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
         Module.setStatus('Exception thrown, see JavaScript console');
@@ -160,28 +133,9 @@
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
+      window.onload = function() {
+        Module.setStatus("Pick an image");
+      }
     </script>
-    <script>
-
-/*
-        (function() {
-          var memoryInitializer = 'flif.html.mem';
-          if (typeof Module['locateFile'] === 'function') {
-            memoryInitializer = Module['locateFile'](memoryInitializer);
-          } else if (Module['memoryInitializerPrefixURL']) {
-            memoryInitializer = Module['memoryInitializerPrefixURL'] + memoryInitializer;
-          }
-          var xhr = Module['memoryInitializerRequest'] = new XMLHttpRequest();
-          xhr.open('GET', memoryInitializer, true);
-          xhr.responseType = 'arraybuffer';
-          xhr.send(null);
-        })();
-*/
-
-        var script = document.createElement('script');
-        script.src = "flif.js";
-        document.body.appendChild(script);
-
-</script>
   </body>
 </html>

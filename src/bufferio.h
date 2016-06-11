@@ -1,33 +1,30 @@
 #pragma once
 
 #include <stdexcept>
-
-extern "C" {
-extern int jsBufGetSize(const int bufId);
-extern int jsBufGetC(const int bufId, const int idx);
-}
+#include "polyflif.hpp"
 
 class BufferIO
 {
 private:
-  const int bufId;
-  const char *name;
   int size;
   int truncateCount;
   int readCount = 0;
-  
+  const PolyFlif &pf;
+
+/*
   // prevent copy
-  BufferIO(const BufferIO&) : bufId(-1) {}
+  BufferIO(const BufferIO&) : pf() {}
   void operator=(const BufferIO&) {}
   // prevent move, for now
   BufferIO(BufferIO&&) : bufId(-1) {}
   void operator=(BufferIO&&) {}
+*/
 
 public:
   const int EOS = -1;
 
-  BufferIO(int abufId, const char *aname, const int truncatePercent) : bufId(abufId), name(aname) {
-    size = jsBufGetSize(bufId);
+  BufferIO(const int truncatePercent, const PolyFlif &pf) : pf(pf) {
+    size = pf.bufGetSize();
     if (truncatePercent == 0) {
       truncateCount = -1;
     } else {
@@ -59,7 +56,7 @@ public:
     if (isEOF()) {
       return EOS;
     } else {
-      int c = jsBufGetC(bufId, readCount);
+      int c = pf.bufGetC(readCount);
       readCount++;
       return c;
     }
@@ -90,6 +87,6 @@ public:
     throw std::runtime_error("Not implemented");
   }
   const char* getName() {
-    return name;
+    return "TODO";
   }
 };
