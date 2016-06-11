@@ -2,7 +2,7 @@
 A browser poly fill for [FLIF](http://flif.info).
 
 [Interactive Demo](https://uprootlabs.github.io/poly-flif/) of features.
-[Sample](https://uprootlabs.github.io/poly-flif/) page with FLIF images on it.
+[Sample](https://uprootlabs.github.io/poly-flif/polyflif-sample.html) page with FLIF images on it.
 
 ## Status
 
