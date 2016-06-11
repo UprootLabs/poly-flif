@@ -230,10 +230,10 @@ public:
         //data = static_cast<pixel_t*>(std::align(16,16,ptr,space));
         uintptr_t diff = (uintptr_t)ptr % 16;
         data = static_cast<pixel_t*>((diff == 0) ? ptr : ((char*)ptr) + (16-diff));
-        assert(data != nullptr);
 #else
         data = data_vec.data();
 #endif
+        assert(data != nullptr);
     }
     void clear() {
         data_vec.clear();
