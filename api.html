@@ -1,0 +1,72 @@
+<html>
+
+<style>
+.quickStart {
+    background: beige;
+    padding: 0.3em 2em;
+    border-radius: 1em;
+}
+</style>
+
+<body>
+
+<div class="quickStart" >
+<h2>Quick Start</h2>
+
+<h3>Step 1: Drop the flif script onto your page</h3>
+<pre>
+&lt;script src="flif.js"&gt;&lt;/script&gt;
+</pre>
+
+<h3>Step 2: Add a canvas element where you want the FLIF image to appear</h3>
+<pre>
+&lt;canvas data-polyflif-src="xyz.flif"&gt;&lt;/canvas&gt;
+</pre>
+
+<h3>Step 3: <strike>? ? ? ?</strike> Wait for the image to load and render</h3>
+
+<h3>Step 4: Profit</h3>
+
+</div>
+<hr />
+
+<h2>Detailed docs</h2>
+Note: this is the first cut of the API. A lot can and will be improved later. Please report any bugs and add your suggestions to the
+<a href="https://github.com/UprootLabs/poly-flif/issues">Github issues</a> list.
+
+<h3>Basics</h3>
+The `flif.js` script performs the following steps:
+
+<ol>
+<li>Registers a handler for `DOMContentLoaded` event.</li>
+<li>When the event is triggered, it scans queries all canvas elements that have `data-polyflif-src` attribute.</li>
+<li>Each such &lt;canvas&gt; element will be queued for processing.</li>
+<li>The URL specified in the attribute will be loaded via XHR request, decoded and rendered onto the canvas.</li>
+</ol>
+
+The canvas element will be resized to fit the image dimensions.
+
+<h3>Controlling the image dimensions</h3>
+<p>
+A FLIF image can be partially decoded to yield a lower resolution image. We can utilise this to efficiently create responsive images.
+</p>
+
+<p>
+First, style the canvas element using CSS so that it has the desired size. You can use media-queries to get a response size.
+</p>
+
+<p>
+Then, add the `data-polyflif-scale` attribute to the canvas element. When this attribute is present, the compute size of the canvas
+element is sent to the decoder (equivalent to the -r option of the FLIF CLI tool). The image is decoded so that it fits the requested
+dimensions, and the canvas element is resized to the resized dimensions.
+</p>
+
+<p>
+(We need to add more options here, for example, to center the image in the canvas, to upscale the image, resize the canvas to fit
+actual dimensions, etc).
+</p>
+
+
+</body>
+
+</html>
