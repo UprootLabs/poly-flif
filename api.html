@@ -1,16 +1,33 @@
 <html>
 
 <style>
-.quickStart {
-    background: beige;
+.pad {
     padding: 0.3em 2em;
-    border-radius: 1em;
+}
+
+.quickStart {
+  background: beige;
+  border-radius: 1em;
+}
+
+
+.links li {
+  display: inline;
+  background: beige;
+  padding: 0.3em 1em;
+  margin-right: 1em;
+  border-radius: .3em;
+  border: 1px dotted grey;
+}
+
+.links a {
+  text-decoration: none;
 }
 </style>
 
 <body>
 
-<div class="quickStart" >
+<div class="quickStart pad" >
 <h2>Quick Start</h2>
 
 <h3>Step 1: Drop the flif script onto your page</h3>
@@ -18,7 +35,7 @@
 &lt;script src="flif.js"&gt;&lt;/script&gt;
 </pre>
 
-<h3>Step 2: Add a canvas element where you want the FLIF image to appear</h3>
+<h3>Step 2: Add a canvas element where you need the FLIF image to appear</h3>
 <pre>
 &lt;canvas data-polyflif-src="xyz.flif"&gt;&lt;/canvas&gt;
 </pre>
@@ -26,12 +43,18 @@
 <h3>Step 3: <strike>? ? ? ?</strike> Wait for the image to load and render</h3>
 
 <h3>Step 4: Profit</h3>
-
 </div>
+
 <hr />
 
+<ul class="links pad">
+<li> <a href='/polyflif-sample'>Sample Page</a> </li>
+<li> <a href='/'>Interactive demo</a> </li>
+</ul>
+
+<div class="pad">
 <h2>Detailed docs</h2>
-Note: this is the first cut of the API. A lot can and will be improved later. Please report any bugs and add your suggestions to the
+Note: this is the first cut of the API. It needs much refinement. Please report any bugs / add your suggestions to the
 <a href="https://github.com/UprootLabs/poly-flif/issues">Github issues</a> list.
 
 <h3>Basics</h3>
@@ -39,7 +62,7 @@ The `flif.js` script performs the following steps:
 
 <ol>
 <li>Registers a handler for `DOMContentLoaded` event.</li>
-<li>When the event is triggered, it scans queries all canvas elements that have `data-polyflif-src` attribute.</li>
+<li>When the event is triggered, it queries all canvas elements that have `data-polyflif-src` attribute.</li>
 <li>Each such &lt;canvas&gt; element will be queued for processing.</li>
 <li>The URL specified in the attribute will be loaded via XHR request, decoded and rendered onto the canvas.</li>
 </ol>
@@ -66,6 +89,7 @@ dimensions, and the canvas element is resized to the resized dimensions.
 actual dimensions, etc).
 </p>
 
+</div>
 
 </body>
 
