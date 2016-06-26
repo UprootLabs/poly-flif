@@ -72,13 +72,20 @@ The `flif.js` script performs the following steps:
 
 The canvas element will be resized to fit the image dimensions.
 
+Similarly, if any element has the `data-polyflif-bg-src` attribute, then the CSS `background-image` is set to the decoded
+FLIF image.
+
+<h3>Partial load and decode</h3>
+<p>
+A FLIF image can be partially decoded to yield a lower resolution image. We can utilise this to reduce bandwidth and CPU usage.
+</p>
+<p>Use the optional `data-polyflif-bytes` attribute to specify the amount of bytes to be loaded and decoded. When this is specified,
+a range header is added to the XHR request. If the server supports range requests, only the specified bytes will be loaded.
+Further, the data from XHR, if not truncated by the server, will be truncated in JS to ensure that decoding is partial.</p>
+
 <h3>Controlling the image dimensions</h3>
 <p>
-A FLIF image can be partially decoded to yield a lower resolution image. We can utilise this to efficiently create responsive images.
-</p>
-
-<p>
-First, style the canvas element using CSS so that it has the desired size. You can use media-queries to get a response size.
+First, style the canvas element using CSS so that it has the desired dimensions. You can use media-queries to set responsive dimensions.
 </p>
 
 <p>
