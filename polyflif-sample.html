@@ -3,6 +3,19 @@
 <head>
 <title>Poly-FLIF sample page</title>
 <script src="flif.js"></script>
+<style>
+
+@media (min-width:600px) {
+.block {
+display: inline-block;
+vertical-align: top;
+}
+.block + .block {
+margin-left: 2em;
+}
+
+}
+</style>
 </head>
 
 <body>
@@ -10,11 +23,22 @@
 <p>The images shown below are decoded <a href="http://flif.info">FLIF</a> images. You need Javascript enabled to see them.</p>
 <p>Read <a href="api.html">about the API</a>, or checkout the <a href="index.html">interactive demo</a>.</p>
 
-<h3>Still Image</h3>
-<canvas data-polyflif-src="assets/1_webp_ll.flif"></canvas>
+<div class="block">
+  <h3>Still Image</h3>
+  <canvas data-polyflif-src="assets/1_webp_ll.flif"></canvas>
+</div>
 
-<h3>Animation</h3>
-<canvas data-polyflif-src="assets/clock.flif"></canvas>
+<div class="block">
+  <h3>Background Image</h3>
+  <div data-polyflif-bg-src="assets/watch_by8.flif" style="height: 331px; width: 497px">
+    <p style="color: white; background: rgba(10, 10, 100, 0.5); padding: 1em;">Checkout the background image!</p>
+  </div>
+</div>
+
+<div class="block">
+  <h3>Animation</h3>
+  <canvas data-polyflif-src="assets/clock.flif"></canvas>
+</div>
 
 </body>
 
