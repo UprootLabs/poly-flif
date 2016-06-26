@@ -109,7 +109,7 @@
 })();
 
 document.addEventListener("DOMContentLoaded", function() {
-  function load(src, rw, rh, andThen) {
+  function load(src, andThen) {
     var xhr = new XMLHttpRequest();
     xhr.responseType = "arraybuffer";
     xhr.open("GET", src);
@@ -130,7 +130,7 @@ document.addEventListener("DOMContentLoaded", function() {
     var scaleRequested = elem.hasAttribute("data-polyflif-scale");
     var rw = scaleRequested && wAttrib.length > 0 ? Number.parseInt(wAttrib) : 0;
     var rh  = scaleRequested && hAttrib.length > 0 ? Number.parseInt(hAttrib) : 0;
-    load(src, rw, rh, function(content) {
+    load(src, function(content) {
       var pf = new PolyFlif({"buf": content, "canvas": elem});
       setTimeout(function() { pf["begin"](0, rw, rh) }, 0);
     });
