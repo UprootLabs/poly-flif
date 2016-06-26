@@ -109,12 +109,15 @@
 })();
 
 document.addEventListener("DOMContentLoaded", function() {
-  function load(src, andThen) {
+  function load(src, bytes, andThen) {
     var xhr = new XMLHttpRequest();
     xhr.responseType = "arraybuffer";
     xhr.open("GET", src);
+    if (bytes) {
+      xhr.setRequestHeader('Range', 'bytes=0-' + bytes);
+    }
     xhr.onload = function() {
-      var content = new Uint8Array(this.response);
+      var content = bytes ? new Uint8Array(this.response, 0, Number.parseInt(bytes)) : new Uint8Array(this.response);
       andThen(content);
     };
     xhr.send();
@@ -124,13 +127,15 @@ document.addEventListener("DOMContentLoaded", function() {
     var src = elem.getAttribute("data-polyflif-src");
     // const wAttrib = elem.getAttribute("width");
     // const hAttrib = elem.getAttribute("height");
+    var bytes = elem.getAttribute("data-polyflif-bytes");
+
     var cs = window.getComputedStyle(elem);
     var wAttrib = cs.width;
     var hAttrib = cs.height;
     var scaleRequested = elem.hasAttribute("data-polyflif-scale");
     var rw = scaleRequested && wAttrib.length > 0 ? Number.parseInt(wAttrib) : 0;
     var rh  = scaleRequested && hAttrib.length > 0 ? Number.parseInt(hAttrib) : 0;
-    load(src, function(content) {
+    load(src, bytes, function(content) {
       var pf = new PolyFlif({"buf": content, "canvas": elem});
       setTimeout(function() { pf["begin"](0, rw, rh) }, 0);
     });
@@ -139,8 +144,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
   function processBg(elem) {
     var src = elem.getAttribute("data-polyflif-bg-src");
+    var bytes = elem.getAttribute("data-polyflif-bytes");
     var cElem = document.createElement("canvas");
-    load(src, function(content) {
+    load(src, bytes, function(content) {
       var pf = new PolyFlif({"buf": content, "canvas": cElem});
       setTimeout(function() {
         pf["begin"](0, 0, 0);
