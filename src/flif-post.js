@@ -136,8 +136,28 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
   
+
+  function processBg(elem) {
+    var src = elem.getAttribute("data-polyflif-bg-src");
+    var cElem = document.createElement("canvas");
+    load(src, function(content) {
+      var pf = new PolyFlif({"buf": content, "canvas": cElem});
+      setTimeout(function() {
+        pf["begin"](0, 0, 0);
+        cElem["toBlob"](function(blob) {
+           elem.style.backgroundImage = "url('" + URL.createObjectURL(blob) + "')";
+        }, 'image/png');
+      }, 0);
+    });
+  }
+
   var canvasElements = document.querySelectorAll("canvas[data-polyflif-src]");
   for (var i = 0; i < canvasElements.length; i++) {
     process(canvasElements[i]);
+  }
+
+  var bgElements = document.querySelectorAll("*[data-polyflif-bg-src]");
+  for (var i = 0; i < bgElements.length; i++) {
+    processBg(bgElements[i]);
   }
 });
