@@ -32,14 +32,6 @@ limitations under the License.
 
 #include "io.hpp"
 
-enum class Optional : uint8_t {
-  undefined = 0
-};
-
-enum class flifEncoding : uint8_t {
-  nonInterlaced = 1,
-  interlaced = 2
-};
 
 extern int64_t pixels_todo;
 extern int64_t pixels_done;
@@ -323,7 +315,7 @@ ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges
 
 int plane_zoomlevels(const Image &image, const int beginZL, const int endZL);
 
-std::pair<int, int> plane_zoomlevel(const Image &image, const int beginZL, const int endZL, int i);
+std::pair<int, int> plane_zoomlevel(const Image &image, const int beginZL, const int endZL, int i, const ColorRanges *ranges);
 
 inline std::vector<ColorVal> computeGreys(const ColorRanges *ranges) {
     std::vector<ColorVal> greys; // a pixel with values in the middle of the bounds

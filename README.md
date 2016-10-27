@@ -20,6 +20,7 @@ The Payload size currently varies between 50 to 80KB (gzipped) while we develop 
 
 ## License
 GNU Lesser General Public License (LGPLv3+) in accordance with the upstream license.
+>>>>>>> origin/master
 
 ## About FLIF
 
