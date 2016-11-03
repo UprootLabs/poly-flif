@@ -42,8 +42,8 @@ void PolyFlif::showImageQuick(Image& image) {
   for (int i = 0; i < iHeight; i++) {
     for (int j = 0; j < iWidth; j++) {
       ColorVal r = image(0, i, j) & 0xFF;
-      ColorVal g = image(1, i, j) & 0xFF;
-      ColorVal b = image(2, i, j) & 0xFF;
+      ColorVal g = numPlanes > 1 ? (image(1, i, j) & 0xFF) : r;
+      ColorVal b = numPlanes > 2 ? (image(2, i, j) & 0xFF) : g;
       ColorVal a = numPlanes > 3 ? (image(3, i, j) & 0xFF) : 255;
       putPixel(j*4, r, g, b, a);
     }
