@@ -85,4 +85,10 @@ var imgInfos = [
      },
     imgSize: { width: 497, height: 331},
   },
+  { name: 'watch_by8_gray',
+    fileSizes: { flif: 61218
+      , png: 88954
+     },
+    imgSize: { width: 497, height: 331},
+  },
 ];
