@@ -1,9 +1,14 @@
 # Poly FLIF
-A browser poly fill for [FLIF](http://flif.info).
+A browser poly fill for [FLIF](http://flif.info) image format. Since this image
+format is not supported natively by browsers yet, this project makes it possible to
+decode FLIF images with Javascript and to then render them on HTML5 Canvas.
 
-Try the [interactive Demo](https://uprootlabs.github.io/poly-flif/) which shows off the FLIF format, using PolyFLIF for decoding.
+Try the [interactive demo](https://uprootlabs.github.io/poly-flif/) if you are
+new to FLIF. The demo allows you to truncate the bitstream and to compare FLIF
+with other image formats.
 
-For an example of how to use the [PolyFLIF API](https://uprootlabs.github.io/poly-flif/api.html) to render FLIF images, see this [page](https://uprootlabs.github.io/poly-flif/polyflif-sample.html).
+For an example of how to use the [PolyFLIF API](https://uprootlabs.github.io/poly-flif/api.html) to render FLIF images,
+see this [page](https://uprootlabs.github.io/poly-flif/polyflif-sample.html).
 
 ## Status
 
