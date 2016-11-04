@@ -1,26 +1,28 @@
 # Poly FLIF
 A browser poly fill for [FLIF](http://flif.info).
 
-[Interactive Demo](https://uprootlabs.github.io/poly-flif/) of features.
-[Sample](https://uprootlabs.github.io/poly-flif/polyflif-sample.html) page with FLIF images on it.
+Try the [interactive Demo](https://uprootlabs.github.io/poly-flif/) which shows off the FLIF format, using PolyFLIF for decoding.
+
+For an example of how to use the [PolyFLIF API](https://uprootlabs.github.io/poly-flif/api.html) to render FLIF images, see this [page](https://uprootlabs.github.io/poly-flif/polyflif-sample.html).
 
 ## Status
 
-Beta. Not tested on all browsers. Performance and size is still being optimised. 
+Mostly stable but needs more testing.
+
+Currently, has been tested manually on latest versions of Chromium and Firefox. No regression tests / CI setup yet.
 
 ## JS payload size
 
-The Payload size currently varies between 50 to 80KB (gzipped) while we develop the library.
+As of version 0.3, the gzipped and minified payload size is 77KB.
 
 ## Roadmap
 
-* Code size reduction and performance optimisation.
 * Async processing (so as to not block the browser event loop during decode)
 * Animation speed and loop control. [#2](https://github.com/UprootLabs/poly-flif/issues/2)
+* Code size reduction and performance optimisation.
 
 ## License
 GNU Lesser General Public License (LGPLv3+) in accordance with the upstream license.
->>>>>>> origin/master
 
 ## About FLIF
 
