@@ -28,7 +28,7 @@ protected:
     const std::vector<int> permutation;
     const ColorRanges *ranges;
 public:
-    ColorRangesPermute(std::vector<int> perm, const ColorRanges *rangesIn)
+    ColorRangesPermute(const std::vector<int> &perm, const ColorRanges *rangesIn)
             : permutation(perm), ranges(rangesIn) { }
     bool isStatic() const override { return false; }
     int numPlanes() const override { return ranges->numPlanes(); }
@@ -43,7 +43,7 @@ protected:
     const std::vector<int> permutation;
     const ColorRanges *ranges;
 public:
-    ColorRangesPermuteSubtract(std::vector<int> perm, const ColorRanges *rangesIn)
+    ColorRangesPermuteSubtract(const std::vector<int> &perm, const ColorRanges *rangesIn)
             : permutation(perm), ranges(rangesIn) { }
     bool isStatic() const override { return false; }
     int numPlanes() const override { return ranges->numPlanes(); }
@@ -84,6 +84,7 @@ public:
         subtract = setting;
     }
     bool process(const ColorRanges *srcRanges, const Images &images) override {
+        if (images[0].palette) return false; // skip if the image is already a palette image
         const int perm[5] = {1,0,2,3,4}; // just always transform RGB to GRB, we can do something more complicated later
         for (int p=0; p<srcRanges->numPlanes(); p++) {
             permutation[p] = perm[p];

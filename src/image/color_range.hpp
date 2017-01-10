@@ -19,7 +19,7 @@ public:
         minmax(p,pp,minv,maxv);
         if (minv > maxv) { //e_printf("Corruption detected!\n");
             // this should only happen on malicious/corrupt input files, or while adding loss
-           maxv=minv; return;
+           maxv=minv;
         }
         assert(minv <= maxv);
         if(v>maxv) v=maxv;
@@ -39,7 +39,7 @@ protected:
     const StaticColorRangeList ranges;
 
 public:
-    StaticColorRanges(StaticColorRangeList &r) : ranges(r) {}
+    explicit StaticColorRanges(StaticColorRangeList &r) : ranges(r) {}
     int numPlanes() const override { return ranges.size(); }
     ColorVal min(int p) const override { if (p >= numPlanes()) return 0; assert(p<numPlanes()); return ranges[p].first; }
     ColorVal max(int p) const override { if (p >= numPlanes()) return 0; assert(p<numPlanes()); return ranges[p].second; }
@@ -51,12 +51,13 @@ class DupColorRanges : public ColorRanges {
 protected:
     const ColorRanges *ranges;
 public:
-    DupColorRanges(const ColorRanges *rangesIn) : ranges(rangesIn) {}
+    explicit DupColorRanges(const ColorRanges *rangesIn) : ranges(rangesIn) {}
 
     int numPlanes() const override { return ranges->numPlanes(); }
     ColorVal min(int p) const override { return ranges->min(p); }
     ColorVal max(int p) const override { return ranges->max(p); }
     void minmax(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv) const override { ranges->minmax(p,pp,minv,maxv); }
+    void snap(const int p, const prevPlanes &pp, ColorVal &minv, ColorVal &maxv, ColorVal &v) const override { ranges->snap(p,pp,minv,maxv,v); }
     bool isStatic() const override { return ranges->isStatic(); }
     const ColorRanges* previous() const override { return ranges; }
 };

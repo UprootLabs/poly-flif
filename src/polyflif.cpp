@@ -14,7 +14,12 @@ int PolyFlif::start(int truncation, int rw, int rh) {
   metadata_options md;
 
   BufferIO bufio(truncation, *this);
-  if (!flif_decode(bufio, images, quality, scale, rw, rh, 0, false, md)) return 3;
+  flif_options options = FLIF_DEFAULT_OPTIONS;
+  options.quality = quality;
+  options.scale = scale;
+  options.resize_width = rw;
+  options.resize_height = rh; // 0, false, 
+  if (!flif_decode(bufio, images, options, md)) return 3;
 
   Image& firstImage = images[0];
   prepareCanvas(firstImage.cols(), firstImage.rows());

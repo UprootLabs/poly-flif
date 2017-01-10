@@ -26,6 +26,7 @@ void v_printf_tty(const int v, const char *format, ...);
 #else
 inline void v_printf(const int v, const char *format, ...) {}
 void v_printf_tty(const int v, const char *format, ...);
+void redirect_stdout_to_stderr();
 #endif
 
 void increase_verbosity(int how_much=1);

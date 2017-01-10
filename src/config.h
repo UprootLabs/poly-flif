@@ -5,12 +5,20 @@
 /*****************************************/
 
 // define this flag if you want support for > 8 bit per channel
+#ifndef ONLY_8BIT
 // #define SUPPORT_HDR 1
+#endif
 
 // include encoder related functionality in build. Disable when only interested in decoder
 #ifndef DECODER_ONLY
 #define HAS_ENCODER  1
 #endif
+
+// support animations
+#ifndef STILL_ONLY
+#define SUPPORT_ANIMATION  1
+#endif
+
 
 // during decode, check for unexpected file end and interpolate from there
 #define CHECK_FOR_BROKENFILES 1
@@ -87,17 +95,14 @@ enum class flifEncoding : uint8_t {
   interlaced = 2
 };
 
-#ifdef HAS_ENCODER
 union flifEncodingOptional {
   flifEncoding encoding;
   Optional o;
   flifEncodingOptional() : o(Optional::undefined) {}
 };
-#endif
 
 struct flif_options {
 #ifdef HAS_ENCODER
-    flifEncodingOptional method;
     int learn_repeats;
     int acb;
     std::vector<int> frame_delay;
@@ -111,13 +116,15 @@ struct flif_options {
     int plc;
     int frs;
     int alpha_zero_special;
-    int alpha;
-    int cutoff;
     int loss;
     int adaptive;
     int predictor[5];
-    int invisible_predictor;
+    int chroma_subsampling;
 #endif
+    flifEncodingOptional method;
+    int invisible_predictor;
+    int alpha;
+    int cutoff;
     int crc_check;
     int metadata;
     int color_profile;
@@ -126,11 +133,15 @@ struct flif_options {
     int resize_width;
     int resize_height;
     int fit;
+    int overwrite;
+    int just_add_loss;
+    int show_breakpoints;
+    int no_full_decode;
+    int keep_palette;
 };
 
 const struct flif_options FLIF_DEFAULT_OPTIONS = {
 #ifdef HAS_ENCODER
-    flifEncodingOptional(), // method
     -1, // learn_repeats
     -1, // acb, try auto color buckets
     {100}, // frame_delay
@@ -144,13 +155,15 @@ const struct flif_options FLIF_DEFAULT_OPTIONS = {
     1, // plc
     1, // frs
     1, // alpha_zero_special
-    19, // alpha
-    2, // cutoff
     0, // loss
     0, // adaptive
     {-2,-2,-2,-2,-2}, // predictor, heuristically pick a fixed predictor on all planes
-    2, // invisible_predictor
+    0, // chroma_subsampling
 #endif
+    flifEncodingOptional(), // method
+    2, // invisible_predictor
+    19, // alpha
+    2, // cutoff
     -1, // crc_check
     1, // metadata
     1, // color_profile
@@ -159,4 +172,9 @@ const struct flif_options FLIF_DEFAULT_OPTIONS = {
     0, // resize_width
     0, // resize_height
     0, // fit
+    0, // overwrite
+    0, // just_add_loss
+    0, // show_breakpoints
+    0, // no_full_decode
+    0, // keep_palette
 };

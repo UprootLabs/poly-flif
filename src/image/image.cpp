@@ -8,12 +8,16 @@
 #include "image-metadata.hpp"
 
 #ifdef _MSC_VER
-#define strcasecmp stricmp
+#define strcasecmp _stricmp
 #endif
 
 #ifdef HAS_ENCODER
 bool Image::load(const char *filename, metadata_options &options)
 {
+    if (!strcmp(filename,"-")) {
+        v_printf(2,"Reading input as PAM/PPM from standard input.  ");
+        return image_load_pnm(filename,*this);
+    }
     const char *f = strrchr(filename,'/');
     const char *ext = f ? strrchr(f,'.') : strrchr(filename,'.');
     v_printf(2,"Loading input file: %s  ",filename);
@@ -55,6 +59,10 @@ bool Image::load(const char *filename, metadata_options &options)
 
 bool Image::save(const char *filename) const
 {
+    if (!strcmp(filename,"-")) {
+        v_printf(2,"Writing output as PAM to standard output.  ");
+        return image_save_pam(filename,*this);
+    }
     const char *f = strrchr(filename,'/');
     const char *ext = f ? strrchr(f,'.') : strrchr(filename,'.');
     v_printf(2,"Saving output file: %s  ",filename);

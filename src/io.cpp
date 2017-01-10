@@ -46,6 +46,7 @@ static int verbosity = 3;
 static int verbosity = 1;
 #endif
 
+// static FILE * my_stdout = stdout;
 void increase_verbosity(int how_much) {
     verbosity += how_much;
 }
@@ -75,3 +76,6 @@ void v_printf(const int v, const char *format, ...) {
 void v_printf_tty(const int v, const char *format, ...) {
 }
 
+void redirect_stdout_to_stderr() {
+    // my_stdout = stderr;
+}
