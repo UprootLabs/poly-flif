@@ -29,6 +29,20 @@ As of version 0.3, the gzipped and minified payload size is 77KB.
 ## License
 GNU Lesser General Public License (LGPLv3+) in accordance with the upstream license.
 
+## Contributing
+
+### How to Build
+
+* Install [emscripten](https://github.com/kripken/emscripten/)
+* Install Java (for the closure compiler)
+* `cd src/`
+* `emmake make`
+
+### CLA
+When you send us a pull request, you acknowledge that
+* You either hold the copyright to your contribution or you have the permission from the copyright holder to submit the contribution to this project.
+* You grant the right to Uproot Labs to use your contribution in the project without any strings attached.
+
 ## About FLIF
 
 FLIF is a lossless image format based on MANIAC compression. MANIAC (Meta-Adaptive Near-zero Integer Arithmetic Coding) is a variant of CABAC (context-adaptive binary arithmetic coding), where the contexts are nodes of decision trees which are dynamically learned at encode time.
