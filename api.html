@@ -83,6 +83,8 @@ A FLIF image can be partially decoded to yield a lower resolution image. We can 
 a range header is added to the XHR request. If the server supports range requests, only the specified bytes will be loaded.
 Further, the data from XHR, if not truncated by the server, will be truncated in JS to ensure that decoding is partial.</p>
 
+<p>Tip: To determine the optimal number of bytes to decode, use the CLI tool with the <em>-b</em> option.</p>
+
 <h3>Controlling the image dimensions</h3>
 <p>
 First, style the canvas element using CSS so that it has the desired dimensions. You can use media-queries to set responsive dimensions.
@@ -90,8 +92,8 @@ First, style the canvas element using CSS so that it has the desired dimensions.
 
 <p>
 Then, add the `data-polyflif-scale` attribute to the canvas element. When this attribute is present, the CSS computed size of the canvas
-element is sent to the decoder (equivalent to the -r option of the FLIF CLI tool). The image is decoded so that it fits the requested
-dimensions, and the canvas element is resized to those dimensions.
+element is sent to the decoder (equivalent to the <em>-f</em> option of the FLIF CLI tool). The image is decoded so that it fits the requested
+dimensions.
 </p>
 
 <p>
