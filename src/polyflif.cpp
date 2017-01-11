@@ -19,6 +19,7 @@ int PolyFlif::start(int truncation, int rw, int rh) {
   options.scale = scale;
   options.resize_width = rw;
   options.resize_height = rh; // 0, false, 
+  options.fit = (rw != 0 || rh != 0) ? 1 : 0;
   if (!flif_decode(bufio, images, options, md)) return 3;
 
   Image& firstImage = images[0];
