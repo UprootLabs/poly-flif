@@ -43,37 +43,60 @@ margin-left: 2em;
 <hr/>
 
 <h2>Partial load and decode</h2>
+This option will request the (HTTP) server to send a partial bytestream, and then decode the specified number of bytes.
+
+<p>Tip: To determine the optimal number of bytes to decode, use the CLI tool with the <em>-b</em> option.</p>
 
 <div class="block">
-  <h3>Still Image (25%)</h3>
-  <canvas data-polyflif-src="assets/1_webp_ll.flif" data-polyflif-bytes="19000"></canvas>
+  <h3>Still Image (data loaded 16%)</h3>
+  <canvas data-polyflif-src="assets/1_webp_ll.flif" data-polyflif-bytes="12970"></canvas>
 </div>
 
 <div class="block">
-  <h3>Background Image (25%)</h3>
-  <div data-polyflif-bg-src="assets/watch_by8.flif" data-polyflif-bytes="40000"  style="height: 331px; width: 497px">
+  <h3>Background Image (data loaded 17%)</h3>
+  <div data-polyflif-bg-src="assets/watch_by8.flif" data-polyflif-bytes="27818"  style="height: 331px; width: 497px">
     <p style="color: white; background: rgba(10, 10, 100, 0.5); padding: 1em;">Checkout the background image!</p>
   </div>
 </div>
 
 <div class="block">
-  <h3>Animation (33%)</h3>
-  <canvas data-polyflif-src="assets/clock.flif" data-polyflif-bytes="8000"></canvas>
+  <h3>Animation (data loaded 31%)</h3>
+  <canvas data-polyflif-src="assets/clock.flif" data-polyflif-bytes="6839"></canvas>
 </div>
 
 <hr/>
 
-<h2>Scale + Partial load</h2>
-<p>(Great for creating thumbnails)</p>
+<h2>Scale</h2>
+<p>Good for creating thumbnails. Note that, when only this option is specified,
+polyFLIF loads the entire bytestream but decodes partially (sufficient enough
+to decode luminance values losslessly, while chroma values are subsampled).</p>
+
+<p>To load partially, combine it with the partial load option, as demonstrated in the next section.</p>
 
 <div class="block">
-  <h3>Still Image (dimensions halved, data 25%)</h3>
-  <canvas data-polyflif-src="assets/1_webp_ll.flif" data-polyflif-scale="true" data-polyflif-bytes="19000" style="width:200px;height:151px"></canvas>
+  <h3>Still Image (dimensions halved)</h3>
+  <canvas data-polyflif-src="assets/1_webp_ll.flif" data-polyflif-scale="true" style="width:200px;height:150px"></canvas>
 </div>
 
 <div class="block">
-  <h3>Animation (dimensions halved, data 33%)</h3>
-  <canvas data-polyflif-src="assets/clock.flif" data-polyflif-scale="true" data-polyflif-bytesx="10000" style="width:75px;height:75px"></canvas>
+  <h3>Animation (dimensions halved)</h3>
+  <canvas data-polyflif-src="assets/clock.flif" data-polyflif-scale="true" style="width:75px;height:75px"></canvas>
+</div>
+
+<h2>Scale + Partial load</h2>
+<p>Great for creating thumbnails</p>
+
+<p>Tip: To determine the optimal number of bytes to decode, use the CLI tool with the <em>-b</em> option.</p>
+
+
+<div class="block">
+  <h3>Still Image (dimensions halved, data 16%)</h3>
+  <canvas data-polyflif-src="assets/1_webp_ll.flif" data-polyflif-scale="true" data-polyflif-bytes="12970" style="width:200px;height:151px"></canvas>
+</div>
+
+<div class="block">
+  <h3>Animation (dimensions halved, data ~50%)</h3>
+  <canvas data-polyflif-src="assets/clock.flif" data-polyflif-scale="true" data-polyflif-bytes="10872" style="width:75px;height:75px"></canvas>
 </div>
 
 </body>
