@@ -425,7 +425,7 @@ function decodeSync(bufId, info, updateChoices) {
 
     setTimeout(function() {
       window['pf'] = new PolyFlif({canvas: document.getElementById('canvas'), buf: jsBuffers[bufId]});
-      window['pf'].begin(retainedPercent, 0, 0);
+      window['pf'].beginPercent(retainedPercent, 0, 0);
       if (updateChoices) {
         displayCompareChoices();
       }

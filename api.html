@@ -115,10 +115,16 @@ var options = {
 };
 var pf = new PolyFlif(options);
 
-var truncation = 0;                                   // in percent (0 to 100).
+var truncationPercent = 0;                            // in percent (0 to 100).
+var truncationCount = -1;                              // in bytes (-1 means no truncation)
 var rw = 0;                                           // requested width (if 0, original image width is used)
 var rh = 0;                                           // requested height (if 0, original image height is used)
-pf.begin(truncation, rw, rh);
+
+// Either this version
+pf.beginPercent(truncationPercent, rw, rh);
+
+// Or this version
+pf.beginCount(truncationCount, rw, rh);
 </pre>
 
 </div>
