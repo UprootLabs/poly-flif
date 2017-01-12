@@ -10,6 +10,7 @@ private:
   int truncateCount;
   int readCount = 0;
   const PolyFlif &pf;
+  bool EOFReached = false;
 
 /*
   // prevent copy
@@ -19,6 +20,10 @@ private:
   BufferIO(BufferIO&&) : bufId(-1) {}
   void operator=(BufferIO&&) {}
 */
+
+  bool isNotReadable() {
+    return (truncateCount >= 0 && readCount >= truncateCount) || (readCount >= size);
+  }
 
 public:
   const int EOS = -1;
@@ -43,17 +48,14 @@ public:
       throw std::runtime_error("Not implemented");
   }
   bool isEOF() {
-    if (truncateCount >= 0 && readCount > truncateCount) {
-      return true;
-    } else {
-      return readCount >= size;
-    }
+    return EOFReached;
   }
   int ftell() {
     return readCount;
   }
   int getc() {
-    if (isEOF()) {
+    if (isNotReadable()) {
+      EOFReached = true;
       return EOS;
     } else {
       int c = pf.bufGetC(readCount);
