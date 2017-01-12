@@ -1,0 +1,29 @@
+<html>
+
+<head>
+<title>Poly-FLIF sample page</title>
+<script src="flif.js"></script>
+<style>
+
+@media (min-width:600px) {
+.block {
+display: inline-block;
+vertical-align: top;
+}
+.block + .block {
+margin-left: 2em;
+}
+
+}
+</style>
+</head>
+
+<body>
+<h2>Test for https://github.com/FLIF-hub/FLIF/issues/346</h2>
+<div class="block">
+  <h3>truncated at location 10860</h3>
+  <canvas data-polyflif-src="assets/clock.flif" data-polyflif-bytes="10860"></canvas>
+  <h3>truncated at location 10872</h3>
+  <canvas data-polyflif-src="assets/clock.flif" data-polyflif-bytes="10872"></canvas>
+</div>
+</body>
