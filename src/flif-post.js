@@ -7,10 +7,16 @@
       this["__parent"]["__construct"].call(this);
     },
 
-    "begin": function(truncation, rw, rh) {
+    "beginCount": function(truncation, rw, rh) {
       this.rw = rw;
       this.rh = rh;
-      this.start(truncation, rw, rh);
+      this["startCount"](truncation, rw, rh);
+    },
+
+    "beginPercent": function(truncationPercent, rw, rh) {
+      this.rw = rw;
+      this.rh = rh;
+      this["startPercent"](truncationPercent, rw, rh);
     },
 
     "stop": function() {
@@ -137,7 +143,7 @@ document.addEventListener("DOMContentLoaded", function() {
     var rh  = scaleRequested && hAttrib.length > 0 ? Number.parseInt(hAttrib) : 0;
     load(src, bytes, function(content) {
       var pf = new PolyFlif({"buf": content, "canvas": elem});
-      setTimeout(function() { pf["begin"](0, rw, rh) }, 0);
+      setTimeout(function() { pf["beginCount"](-1, rw, rh) }, 0);
     });
   }
   
@@ -149,7 +155,7 @@ document.addEventListener("DOMContentLoaded", function() {
     load(src, bytes, function(content) {
       var pf = new PolyFlif({"buf": content, "canvas": cElem});
       setTimeout(function() {
-        pf["begin"](0, 0, 0);
+        pf["beginCount"](-1, 0, 0);
         cElem["toBlob"](function(blob) {
            elem.style.backgroundImage = "url('" + URL.createObjectURL(blob) + "')";
         }, 'image/png');

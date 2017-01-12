@@ -6,7 +6,13 @@
 #include "bufferio.h"
 #include "polyflif.hpp"
 
-int PolyFlif::start(int truncation, int rw, int rh) {
+int PolyFlif::startPercent(int truncatePercent, int rw, int rh) {
+   const int size = bufGetSize();
+   const int truncateCount = (truncatePercent == 0) ? -1 : size * (truncatePercent/100.0);
+   return startCount(truncateCount, rw, rh);
+}
+
+int PolyFlif::startCount(int truncation, int rw, int rh) {
   Images images;
   int quality = 100;
   int scale = 1;
@@ -125,7 +131,8 @@ struct PolyFlifWrapper : public wrapper<PolyFlif> {
 
 EMSCRIPTEN_BINDINGS(my_module) {
   class_<PolyFlif>("PolyFlif")
-    .function("start", &PolyFlif::start)
+    .function("startCount", &PolyFlif::startCount)
+    .function("startPercent", &PolyFlif::startPercent)
     // .function("putPixel", &PolyFlif::putPixel, pure_virtual())
     // .function("putRow", &PolyFlif::putRow, pure_virtual(), allow_raw_pointers())
     .allow_subclass<PolyFlifWrapper>("PolyFlifWrapper")

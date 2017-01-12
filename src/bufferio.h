@@ -28,13 +28,8 @@ private:
 public:
   const int EOS = -1;
 
-  BufferIO(const int truncatePercent, const PolyFlif &pf) : pf(pf) {
+  BufferIO(const int truncateCountIn, const PolyFlif &pf) : truncateCount(truncateCountIn), pf(pf) {
     size = pf.bufGetSize();
-    if (truncatePercent == 0) {
-      truncateCount = -1;
-    } else {
-      truncateCount = size * (truncatePercent/100.0);
-    }
   }
 
   ~BufferIO() {
