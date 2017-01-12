@@ -41,7 +41,7 @@ void e_printf(const char *format, ...) {
 }
 
 #ifdef DEBUG
-static int verbosity = 3;
+static int verbosity = 10;
 #else
 static int verbosity = 1;
 #endif

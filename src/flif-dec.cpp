@@ -601,7 +601,7 @@ bool flif_decode_FLIF2_inner_horizontal(const int p, IO& io, Rac &rac, std::vect
                 GeneralPlane &plane = image.getPlane(p);
                 //ConstantPlane null_alpha(1);
                 const alpha_t &planeY = static_cast<const alpha_t&>(image.getPlane(0));
-                const alpha_t &alpha = nump > 3 ? static_cast<const alpha_t&>(image.getPlane(3)) : planeY; //null_alpha;
+                const alpha_t &alpha = nump > 3 && !image.getPlane(3).is_constant() ? static_cast<const alpha_t&>(image.getPlane(3)) : planeY; //null_alpha;
                 rowdecoder.prepare_row(r,fr, &alpha, &planeY);
                 plane.accept_visitor(rowdecoder);
             }
@@ -632,7 +632,7 @@ bool flif_decode_FLIF2_inner_vertical(const int p, IO& io, Rac &rac, std::vector
                 GeneralPlane &plane = image.getPlane(p);
                 //ConstantPlane null_alpha(1);
                 const alpha_t &planeY = static_cast<const alpha_t&>(image.getPlane(0));
-                const alpha_t &alpha = nump > 3 ? static_cast<const alpha_t&>(image.getPlane(3)) : planeY; //null_alpha;
+                const alpha_t &alpha = nump > 3 && !image.getPlane(3).is_constant() ? static_cast<const alpha_t&>(image.getPlane(3)) : planeY; //null_alpha;
                 rowdecoder.prepare_row(r,fr, &alpha, &planeY);
                 plane.accept_visitor(rowdecoder);
             }
@@ -690,6 +690,7 @@ bool flif_decode_FLIF2_inner(IO& io, Rac &rac, std::vector<Coder> &coders, Image
         if (1<<(z/2) < breakpoints) {
             v_printf(1,"1:%i scale: %li bytes\n",breakpoints,io.ftell());
             breakpoints /= 2;
+            options.show_breakpoints = breakpoints;
             if (options.no_full_decode && breakpoints < 2) return false;
         }
         if (1<<(z/2) < scale) {
@@ -1258,7 +1259,7 @@ bool flif_decode(IO& io, Images &images, uint32_t (*callback)(int32_t,int64_t), 
             i.fully_decoded=true;
     }
 
-    if (!smaller_buffer) {
+    if (!smaller_buffer || !images[0].palette) {
       while(!transform_ptrs.empty()) {
         transform_ptrs.back()->invData(images);
         transform_ptrs.pop_back();
