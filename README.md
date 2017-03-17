@@ -46,4 +46,3 @@ When you send us a pull request, you acknowledge that
 ## About FLIF
 
 FLIF is a lossless image format based on MANIAC compression. MANIAC (Meta-Adaptive Near-zero Integer Arithmetic Coding) is a variant of CABAC (context-adaptive binary arithmetic coding), where the contexts are nodes of decision trees which are dynamically learned at encode time.
-

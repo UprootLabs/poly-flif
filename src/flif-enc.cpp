@@ -497,6 +497,7 @@ void flif_make_lossy_interlaced(Images &images, const ColorRanges * ranges, int 
 //      printf("[%i] p=%i, z=%i\n",i,p,z);
       int factor=255;
       if (z>4) factor = factor * 4 / z;
+      assert(beginZL && "division by zero");
       factor = ((beginZL-z)*factor/(beginZL));
       if (z==0) factor += loss*2;
       if (z==1) factor += loss;
@@ -938,7 +939,7 @@ bool flif_encode(IO& io, Images &images, const std::vector<std::string> &transDe
          return false;
     }
     if (tcount==0) v_printf(3,"none\n"); else v_printf(3,"\n");
-    if (warn_about_incompatibility > 1) v_printf(1,"WARNING: This animated FLIF will probably not be properly decoded by older FLIF decoders (version < 0.3) since they have a bug in this particular combination of transformations.\nIf backwards compatibility is important, you can use the option -B to avoid the issue.");
+    if (warn_about_incompatibility > 1) v_printf(1,"WARNING: This animated FLIF will probably not be properly decoded by older FLIF decoders (version < 0.3) since they have a bug in this particular combination of transformations.\nIf backwards compatibility is important, you can use the option -B to avoid the issue.\n");
     rac.write_bit(false);
     const ColorRanges* ranges = rangesList.back().get();
 
