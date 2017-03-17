@@ -27,6 +27,15 @@ EM_SCRIPT_OPTIONS+=--bind
 
 CXXFLAGS += ${EM_SCRIPT_OPTIONS}
 
-em-out/flif.html: maniac/*.hpp maniac/*.cpp image/*.hpp image/*.cpp transform/*.hpp transform/*.cpp flif-enc.cpp flif-dec.cpp common.cpp flif-enc.hpp flif-dec.hpp common.hpp flif_config.h fileio.hpp bufferio.h io.hpp io.cpp config.h Makefile polyflif.cpp flif-post.js flif-pre.js
-	${CXX} -std=c++11 $(CXXFLAGS) $(LDFLAGS) -DDECODER_ONLY -DNDEBUG -Oz -g0 -Wall maniac/chance.cpp image/color_range.cpp transform/factory.cpp common.cpp flif-dec.cpp io.cpp image/crc32k.cpp polyflif.cpp -o em-out/flif.html
+INPUTS=maniac/*.hpp maniac/*.cpp image/*.hpp image/*.cpp transform/*.hpp transform/*.cpp flif-enc.cpp flif-dec.cpp common.cpp flif-enc.hpp flif-dec.hpp common.hpp flif_config.h fileio.hpp bufferio.h io.hpp io.cpp config.h Makefile polyflif.cpp flif-post.js flif-pre.js
+
+SRCS=maniac/chance.cpp image/color_range.cpp transform/factory.cpp common.cpp flif-dec.cpp io.cpp image/crc32k.cpp polyflif.cpp
+
+all: em-out/flif.html em-out-stillonly/flif.html
+
+em-out/flif.html: $(INPUTS)
+	${CXX} -std=c++11 $(CXXFLAGS) $(LDFLAGS) -DDECODER_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out/flif.html
+
+em-out-stillonly/flif.html: $(INPUTS)
+	${CXX} -std=c++11 $(CXXFLAGS) $(LDFLAGS) -DDECODER_ONLY -DSTILL_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out-stillonly/flif.html
 
