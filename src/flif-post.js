@@ -142,8 +142,9 @@ document.addEventListener("DOMContentLoaded", function() {
     var rw = scaleRequested && wAttrib.length > 0 ? Number.parseInt(wAttrib) : 0;
     var rh  = scaleRequested && hAttrib.length > 0 ? Number.parseInt(hAttrib) : 0;
     load(src, bytes, function(content) {
-      var pf = new PolyFlif({"buf": content, "canvas": elem});
-      setTimeout(function() { pf["beginCount"](-1, rw, rh) }, 0);
+      setTimeout(function() {
+	var pf = new PolyFlif({"buf": content, "canvas": elem});
+	pf["beginCount"](-1, rw, rh) }, 1);
     });
   }
   
@@ -153,13 +154,13 @@ document.addEventListener("DOMContentLoaded", function() {
     var bytes = elem.getAttribute("data-polyflif-bytes");
     var cElem = document.createElement("canvas");
     load(src, bytes, function(content) {
-      var pf = new PolyFlif({"buf": content, "canvas": cElem});
       setTimeout(function() {
+        var pf = new PolyFlif({"buf": content, "canvas": cElem});
         pf["beginCount"](-1, 0, 0);
         cElem["toBlob"](function(blob) {
            elem.style.backgroundImage = "url('" + URL.createObjectURL(blob) + "')";
         }, 'image/png');
-      }, 0);
+      }, 1);
     });
   }
 
