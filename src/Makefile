@@ -27,6 +27,9 @@ EM_SCRIPT_OPTIONS+=--bind
 
 CXXFLAGS += ${EM_SCRIPT_OPTIONS}
 
+# for running interface-test
+export LD_LIBRARY_PATH=$(shell pwd):/usr/local/lib:$LD_LIBRARY_PATH
+
 INPUTS=maniac/*.hpp maniac/*.cpp image/*.hpp image/*.cpp transform/*.hpp transform/*.cpp flif-enc.cpp flif-dec.cpp common.cpp flif-enc.hpp flif-dec.hpp common.hpp flif_config.h fileio.hpp bufferio.h io.hpp io.cpp config.h Makefile polyflif.cpp flif-post.js flif-pre.js
 
 SRCS=maniac/chance.cpp image/color_range.cpp transform/factory.cpp common.cpp flif-dec.cpp io.cpp image/crc32k.cpp polyflif.cpp

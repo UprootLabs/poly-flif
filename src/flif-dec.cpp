@@ -1342,6 +1342,9 @@ bool flif_decode(IO& io, Images &images, uint32_t (*callback)(int32_t,int64_t), 
     pixels_todo = 0;
     pixels_done = 0;
 
+    if (options.metadata) {
+      images[0].metadata = metadata;
+    }
     return true;
 }
 
