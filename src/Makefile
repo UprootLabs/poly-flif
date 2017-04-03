@@ -3,7 +3,7 @@
 
 CXX=em++
 
-EM_SCRIPT_OPTIONS=-s EXPORTED_FUNCTIONS='["_mainy"]' -s TOTAL_MEMORY=100000000 --pre-js flif-pre.js --post-js flif-post.js
+EM_SCRIPT_OPTIONS=-s EXPORTED_FUNCTIONS='["_mainy"]' --pre-js flif-pre.js --post-js flif-post.js
 
 # optimisation options
 EM_SCRIPT_OPTIONS+= -s NO_FILESYSTEM=1
@@ -37,8 +37,8 @@ SRCS=maniac/chance.cpp image/color_range.cpp transform/factory.cpp common.cpp fl
 all: em-out/flif.html em-out-stillonly/flif.html
 
 em-out/flif.html: $(INPUTS)
-	${CXX} -std=c++11 $(CXXFLAGS) $(LDFLAGS) -DDECODER_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out/flif.html
+	${CXX} -std=c++11 $(CXXFLAGS) -s TOTAL_MEMORY=100000000 $(LDFLAGS) -DDECODER_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out/flif.html
 
 em-out-stillonly/flif.html: $(INPUTS)
-	${CXX} -std=c++11 $(CXXFLAGS) $(LDFLAGS) -DDECODER_ONLY -DSTILL_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out-stillonly/flif.html
+	${CXX} -std=c++11 $(CXXFLAGS) -s TOTAL_MEMORY=20000000 $(LDFLAGS) -DDECODER_ONLY -DSTILL_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out-stillonly/flif.html
 
