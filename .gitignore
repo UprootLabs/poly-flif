@@ -3,6 +3,7 @@
 /src/em-out/flif.data
 /src/em-out/flif.js
 /src/em-out/assets
+/src/em-out-stillonly/flif.*
 # build system
 obj/
 *.pyc
