@@ -3,7 +3,7 @@
 
 CXX=em++
 
-EM_SCRIPT_OPTIONS=-s EXPORTED_FUNCTIONS='["_mainy"]' --pre-js flif-pre.js --post-js flif-post.js
+EM_SCRIPT_OPTIONS= --pre-js flif-pre.js --post-js flif-post.js
 
 # optimisation options
 EM_SCRIPT_OPTIONS+= -s NO_FILESYSTEM=1
@@ -11,13 +11,9 @@ EM_SCRIPT_OPTIONS+= -s NO_FILESYSTEM=1
 # EM_SCRIPT_OPTIONS+= -s NODE_STDOUT_FLUSH_WORKAROUND=0
 EM_SCRIPT_OPTIONS+= -s INVOKE_RUN=0
 EM_SCRIPT_OPTIONS+= -s ASSERTIONS=0
-EM_SCRIPT_OPTIONS+= --closure 1
 EM_SCRIPT_OPTIONS+=-s ASM_JS=2
-EM_SCRIPT_OPTIONS+=-s ELIMINATE_DUPLICATE_FUNCTIONS=1
-EM_SCRIPT_OPTIONS+= --llvm-lto 3
 
 #EM_SCRIPT_OPTIONS+=-s MODULARIZE=1
-EM_SCRIPT_OPTIONS+=-s AGGRESSIVE_VARIABLE_ELIMINATION=1
 EM_SCRIPT_OPTIONS+=-s RUNNING_JS_OPTS=1
 EM_SCRIPT_OPTIONS+=-s DISABLE_EXCEPTION_CATCHING=1
 EM_SCRIPT_OPTIONS+=-s NO_EXIT_RUNTIME=1
@@ -25,7 +21,23 @@ EM_SCRIPT_OPTIONS+= -s USE_SDL=0
 EM_SCRIPT_OPTIONS+=--memory-init-file 0
 EM_SCRIPT_OPTIONS+=--bind
 
+#OPTIMISE = 1
+
+ifdef OPTIMISE
+CXXFLAGS += -Oz -g0
+EM_SCRIPT_OPTIONS+= --closure 1
+EM_SCRIPT_OPTIONS+= --llvm-lto 3
+EM_SCRIPT_OPTIONS+=-s ELIMINATE_DUPLICATE_FUNCTIONS=1
+EM_SCRIPT_OPTIONS+=-s AGGRESSIVE_VARIABLE_ELIMINATION=1
+else
+CXXFLAGS += -O1
+endif
+
 CXXFLAGS += ${EM_SCRIPT_OPTIONS}
+
+CXXFLAGS += -Wall
+CXXFLAGS += -DDECODER_ONLY -DNDEBUG
+CXXFLAGS += -std=c++11
 
 # for running interface-test
 export LD_LIBRARY_PATH=$(shell pwd):/usr/local/lib:$LD_LIBRARY_PATH
@@ -37,8 +49,8 @@ SRCS=maniac/chance.cpp image/color_range.cpp transform/factory.cpp common.cpp fl
 all: em-out/flif.html em-out-stillonly/flif.html
 
 em-out/flif.html: $(INPUTS)
-	${CXX} -std=c++11 $(CXXFLAGS) -s TOTAL_MEMORY=100000000 $(LDFLAGS) -DDECODER_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out/flif.html
+	${CXX} $(CXXFLAGS) -s TOTAL_MEMORY=100000000 $(LDFLAGS) $(SRCS) -o em-out/flif.html
 
 em-out-stillonly/flif.html: $(INPUTS)
-	${CXX} -std=c++11 $(CXXFLAGS) -s TOTAL_MEMORY=20000000 $(LDFLAGS) -DDECODER_ONLY -DSTILL_ONLY -DNDEBUG -Oz -g0 -Wall $(SRCS) -o em-out-stillonly/flif.html
+	${CXX} $(CXXFLAGS) -s TOTAL_MEMORY=20000000 -DSTILL_ONLY $(LDFLAGS) $(SRCS) -o em-out-stillonly/flif.html
 
