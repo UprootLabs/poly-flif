@@ -143,8 +143,9 @@ document.addEventListener("DOMContentLoaded", function() {
     var rh  = scaleRequested && hAttrib.length > 0 ? Number.parseInt(hAttrib) : 0;
     load(src, bytes, function(content) {
       setTimeout(function() {
-	var pf = new PolyFlif({"buf": content, "canvas": elem});
-	pf["beginCount"](-1, rw, rh) }, 1);
+        var pf = new PolyFlif({"buf": content, "canvas": elem});
+        pf["beginCount"](-1, rw, rh);
+      }, 1);
     });
   }
   
