@@ -28,8 +28,10 @@
     "bufGetSize": function () {
       return this.buf.length;
     },
-    "bufGetC": function (idx) {
-      return this.buf[idx];
+    "readBuffer": function(from, to, size) {
+      var rem = Math.min(this.buf.length - from, size);
+      var sub = this.buf.subarray(from, from + rem);
+      Module["HEAPU8"].set(sub, to);
     },
 
     "prepareCanvas": function(aw, ah) {

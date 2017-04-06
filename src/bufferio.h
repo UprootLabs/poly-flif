@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include "polyflif.hpp"
 
+#define BUFFER_SIZE (1024 * 4)
+
 class BufferIO
 {
 private:
@@ -11,6 +13,8 @@ private:
   int readCount = 0;
   const PolyFlif &pf;
   bool EOFReached = false;
+  uint8_t buffer[BUFFER_SIZE];
+  uint16_t bufPos = BUFFER_SIZE;
 
 /*
   // prevent copy
@@ -20,6 +24,16 @@ private:
   BufferIO(BufferIO&&) : bufId(-1) {}
   void operator=(BufferIO&&) {}
 */
+
+  int getBufferedChar() {
+    if (bufPos >= BUFFER_SIZE) {
+      pf.readBuffer(readCount, (int) buffer, BUFFER_SIZE);
+      bufPos = 0;
+    }
+
+    readCount++;
+    return buffer[bufPos++];
+  }
 
   bool isNotReadable() {
     return (truncateCount >= 0 && readCount >= truncateCount) || (readCount >= size);
@@ -53,11 +67,10 @@ public:
       EOFReached = true;
       return EOS;
     } else {
-      int c = pf.bufGetC(readCount);
-      readCount++;
-      return c;
+      return getBufferedChar();
     }
   }
+
   char * gets(char *buf, int n) {
     int i = 0;
     for (; i < (n-1) && (!isEOF()); i++) {

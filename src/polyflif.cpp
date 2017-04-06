@@ -109,8 +109,8 @@ struct PolyFlifWrapper : public wrapper<PolyFlif> {
   int bufGetSize() const {
     return call<int>("bufGetSize");
   }
-  int bufGetC(int idx) const {
-    return call<int>("bufGetC", idx);
+  void readBuffer(int from, int ptr, int size) const {
+    return call<void>("readBuffer", from, ptr, size);
   }
 
   void showRow(int row, int data, int width) const {

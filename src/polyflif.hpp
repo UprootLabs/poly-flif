@@ -11,7 +11,7 @@ public:
   int startPercent(int truncatePercent, int rw, int rh);
 
   virtual int bufGetSize() const = 0;
-  virtual int bufGetC(int idx) const = 0;
+  virtual void readBuffer(int from, int ptr, int size) const = 0;
 
   virtual void prepareCanvas(const int aw, const int ah) const = 0;
   virtual void showRow(int row, int data, int width) const = 0;
