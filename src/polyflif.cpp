@@ -46,20 +46,25 @@ int PolyFlif::startCount(int truncation, int rw, int rh) {
 }
 
 void PolyFlif::showImageQuick(Image& image) {
-  int numPlanes = image.numPlanes();
+  const int numPlanes = image.numPlanes();
 
   const int iWidth = image.cols();
   const int iHeight = image.rows();
+  uint8_t data[iWidth * 4];
 
   for (int i = 0; i < iHeight; i++) {
-    for (int j = 0; j < iWidth; j++) {
-      ColorVal r = image(0, i, j) & 0xFF;
-      ColorVal g = numPlanes > 1 ? (image(1, i, j) & 0xFF) : r;
-      ColorVal b = numPlanes > 2 ? (image(2, i, j) & 0xFF) : g;
-      ColorVal a = numPlanes > 3 ? (image(3, i, j) & 0xFF) : 255;
-      putPixel(j*4, r, g, b, a);
+    for (int j = 0, index = 0; j < iWidth; j++) {
+      const ColorVal r = image(0, i, j) & 0xFF;
+      const ColorVal g = numPlanes > 1 ? (image(1, i, j) & 0xFF) : r;
+      const ColorVal b = numPlanes > 2 ? (image(2, i, j) & 0xFF) : g;
+      const ColorVal a = numPlanes > 3 ? (image(3, i, j) & 0xFF) : 255;
+      data[index++] = r;
+      data[index++] = g;
+      data[index++] = b;
+      data[index++] = a;
+
     }
-    showRow(i);
+    showRow(i, (int) data, iWidth);
   }
 
   finishCanvasDraw();
@@ -101,17 +106,15 @@ struct PolyFlifWrapper : public wrapper<PolyFlif> {
   void prepareCanvas(const int aw, const int ah) const {
     return call<void>("prepareCanvas", aw, ah);
   }
-  void putPixel(const int indx, const uint8_t r, const uint8_t g, const uint8_t b, const uint8_t a) const {
-    return call<void>("putPixel", indx, r, g, b, a);
-  }
   int bufGetSize() const {
     return call<int>("bufGetSize");
   }
   int bufGetC(int idx) const {
     return call<int>("bufGetC", idx);
   }
-  void showRow(int row) const {
-    return call<void>("showRow", row);
+
+  void showRow(int row, int data, int width) const {
+    return call<void>("showRow", row, data, width);
   }
   void finishCanvasDraw(void) const {
     return call<void>("finishCanvasDraw");
@@ -133,8 +136,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
   class_<PolyFlif>("PolyFlif")
     .function("startCount", &PolyFlif::startCount)
     .function("startPercent", &PolyFlif::startPercent)
-    // .function("putPixel", &PolyFlif::putPixel, pure_virtual())
-    // .function("putRow", &PolyFlif::putRow, pure_virtual(), allow_raw_pointers())
     .allow_subclass<PolyFlifWrapper>("PolyFlifWrapper")
     ;
 }

@@ -53,7 +53,9 @@
       idd[indx + 3] = a;
     },
 
-    "showRow": function(i) {
+    "showRow": function(i, data, width) {
+      var heap = Module["HEAPU8"].subarray(data, data + width*4);
+      this.imgDataData.set(heap, 0);
       this.ctx.putImageData(this.imgData, 0, i);
     },
 
