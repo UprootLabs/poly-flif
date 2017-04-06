@@ -49,8 +49,8 @@ SRCS=maniac/chance.cpp image/color_range.cpp transform/factory.cpp common.cpp fl
 all: em-out/flif.html em-out-stillonly/flif.html
 
 em-out/flif.html: $(INPUTS)
-	${CXX} $(CXXFLAGS) -s TOTAL_MEMORY=100000000 $(LDFLAGS) $(SRCS) -o em-out/flif.html
+	${CXX} $(CXXFLAGS) -s TOTAL_MEMORY=100663296 $(LDFLAGS) $(SRCS) -o em-out/flif.html
 
 em-out-stillonly/flif.html: $(INPUTS)
-	${CXX} $(CXXFLAGS) -s TOTAL_MEMORY=20000000 -DSTILL_ONLY $(LDFLAGS) $(SRCS) -o em-out-stillonly/flif.html
+	${CXX} $(CXXFLAGS) -s TOTAL_MEMORY=33554432 -DSTILL_ONLY $(LDFLAGS) $(SRCS) -o em-out-stillonly/flif.html
 
