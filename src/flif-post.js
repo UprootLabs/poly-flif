@@ -1,42 +1,10 @@
-
-  window["PolyFlif"] = Module["PolyFlif"].extend("PolyFlif", {
-    "__construct": function(options) {
-
-      this.options = options;
-      this.buf = options["buf"];
-      this["__parent"]["__construct"].call(this);
-    },
-
-    "beginCount": function(truncation, rw, rh) {
+  function CanvasManager(canvas) {
+    this.setRequestedDimensions = function(rw, rh) {
       this.rw = rw;
       this.rh = rh;
-      this["startCount"](truncation, rw, rh);
-    },
+    }
 
-    "beginPercent": function(truncationPercent, rw, rh) {
-      this.rw = rw;
-      this.rh = rh;
-      this["startPercent"](truncationPercent, rw, rh);
-    },
-
-    "stop": function() {
-      if (this.nAnims) {
-        this.nAnims.play = false;
-      }
-    },
-
-    "bufGetSize": function () {
-      return this.buf.length;
-    },
-    "readBuffer": function(from, to, size) {
-      var rem = Math.min(this.buf.length - from, size);
-      var sub = this.buf.subarray(from, from + rem);
-      Module["HEAPU8"].set(sub, to);
-    },
-
-    "prepareCanvas": function(aw, ah) {
-      var canvas = this.options["canvas"];
-
+    this.prepareCanvas = function(aw, ah) {
       var width = Math.max(this.rw, aw);
       canvas.width = width;
       var height = Math.max(this.rh, ah);
@@ -45,27 +13,24 @@
       this.ctx = canvas.getContext("2d");
       this.imgData = this.ctx.getImageData(0,0,width,1);
       this.imgDataData = this.imgData.data;
-    },
+    }
 
-    "showRow": function(i, data, width) {
-      var heap = Module["HEAPU8"].subarray(data, data + width*4);
-      this.imgDataData.set(heap, 0);
-      this.ctx.putImageData(this.imgData, 0, i);
-    },
+    this.showRow = function(row, data) {
+      this.imgDataData.set(data, 0);
+      this.ctx.putImageData(this.imgData, 0, row);
+    }
 
-    "finishCanvasDraw": function() {
+    this.finish = function() {
       this.ctx = undefined;
       this.imgData = undefined;
       this.imgDataData = undefined;
-      this.buf = undefined;
-    },
+    }
 
-    "initAnimImage": function (n, aw, ah) {
+    this.initAnimImage = function(n, aw, ah) {
       var width = Math.max(this.rw, aw);
       var height = Math.max(this.rh, ah);
 
       if (n == 0) {
-        var canvas = this.options["canvas"];
         canvas.width = width;
         canvas.height = height;
 
@@ -74,18 +39,16 @@
         this.nAnims.height = height;
       }
       this.nAnims[n] = new ImageData(width, height);
-    },
+    }
 
-    "putRow": function (n, i, data) {
-      var heap = Module["HEAPU8"].subarray(data, data + (this.nAnims.width * 4));
-      this.nAnims[n].data.set(heap, i * this.nAnims.width * 4);
-    },
+    this.animPutRow = function(n, row, heap) {
+      this.nAnims[n].data.set(heap, row * this.nAnims.width * 4);
+    }
 
-    "finishAnimTx": function() {
+    this.animStartPlay = function() {
       var anims = this.nAnims;
       anims.play = true;
-      var canvas = this.options["canvas"];
-      var ctx = canvas.getContext('2d');
+      var ctx = this.ctx;
       var currFrame = 0;
       var lastStep = 0;
       function step(now) {
@@ -104,6 +67,72 @@
         }
       }
       window.requestAnimationFrame(step);
+    }
+  }
+
+  window["PolyFlif"] = Module["PolyFlif"].extend("PolyFlif", {
+    "__construct": function(options) {
+
+      this.options = options;
+      this.buf = options["buf"];
+      this["__parent"]["__construct"].call(this);
+      this.cm = new CanvasManager(this.options["canvas"]);
+    },
+
+    "beginCount": function(truncation, rw, rh) {
+      this.cm.setRequestedDimensions(rw, rh);
+      this["startCount"](truncation, rw, rh);
+    },
+
+    "beginPercent": function(truncationPercent, rw, rh) {
+      this.cm.setRequestedDimensions(rw, rh);
+      this["startPercent"](truncationPercent, rw, rh);
+    },
+
+    "stop": function() {
+      if (this.nAnims) {
+        this.nAnims.play = false;
+      }
+    },
+
+    // --------------------
+    // called from C++ code
+
+    "bufGetSize": function () {
+      return this.buf.length;
+    },
+
+    "readBuffer": function(from, to, size) {
+      var rem = Math.min(this.buf.length - from, size);
+      var sub = this.buf.subarray(from, from + rem);
+      Module["HEAPU8"].set(sub, to);
+    },
+
+    "prepareCanvas": function(aw, ah) {
+      this.cm.prepareCanvas(aw, ah);
+    },
+
+    "showRow": function(row, dataPtr, width) {
+      var data = Module["HEAPU8"].subarray(dataPtr, dataPtr + width*4);
+      this.cm.showRow(row, data);
+    },
+
+    "finishCanvasDraw": function() {
+      this.cm.finish();
+      this.buf = undefined;
+    },
+
+    "initAnimImage": function (n, aw, ah) {
+      this.cm.initAnimImage(n, aw, ah);
+    },
+
+    "putRow": function (n, row, dataPtr) {
+      var data = Module["HEAPU8"].subarray(dataPtr, dataPtr + (this.cm.nAnims.width * 4));
+      this.cm.animPutRow(n, row, data);
+    },
+
+    "finishAnimTx": function() {
+      this.cm.animStartPlay();
     }
 
   });
