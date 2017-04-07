@@ -47,14 +47,6 @@
       this.imgDataData = this.imgData.data;
     },
 
-    "putPixel": function(indx, r, g, b, a) {
-      var idd = this.imgDataData;
-      idd[indx    ] = r;
-      idd[indx + 1] = g;
-      idd[indx + 2] = b;
-      idd[indx + 3] = a;
-    },
-
     "showRow": function(i, data, width) {
       var heap = Module["HEAPU8"].subarray(data, data + width*4);
       this.imgDataData.set(heap, 0);
