@@ -22,3 +22,9 @@ template <typename IO>
 bool flif_decode(IO& io, Images &images, flif_options &options, metadata_options &md) {
     return flif_decode(io, images, NULL, 0, images, options, md, NULL);
 }
+
+// With callback
+template <typename IO>
+bool flif_decode(IO& io, Images &images, uint32_t (*callback)(int32_t,int64_t), int initialProgressThreshold, Images &partial_images, flif_options &options, metadata_options &md) {
+    return flif_decode(io, images, callback, initialProgressThreshold, partial_images, options, md, NULL);
+}

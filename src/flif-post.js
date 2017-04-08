@@ -3,6 +3,8 @@
 
   function DirectCanvasManager(canvas) {
     var animPlay = true;
+    var animStarted = false;
+    var nAnims = [];
 
     this["setRequestedDimensions"] = function(rw, rh) {
       this.rw = rw;
@@ -11,11 +13,17 @@
 
     this["prepareCanvas"] = function(aw, ah) {
       var width = Math.max(this.rw, aw);
-      canvas.width = width;
+      if (canvas.width != width) {
+        canvas.width = width;
+      }
       var height = Math.max(this.rh, ah);
-      canvas.height = height;
+      if (canvas.height != height) {
+        canvas.height = height;
+      }
 
-      this.ctx = canvas.getContext("2d");
+      if (!this.ctx) {
+        this.ctx = canvas.getContext("2d");
+      }
       this.imgData = this.ctx.getImageData(0,0,width,1);
       this.imgDataData = this.imgData.data;
     }
@@ -36,31 +44,43 @@
       var height = Math.max(this.rh, ah);
 
       if (n == 0) {
-        canvas.width = width;
-        canvas.height = height;
+        if (canvas.width != width) {
+          canvas.width = width;
+        }
+        if (canvas.height != height) {
+          canvas.height = height;
+        }
 
-        this.nAnims = [];
         this.animWidth = aw;
         // this.nAnims.height = height;
+        if (!this.ctx) {
+          this.ctx = canvas.getContext("2d");
+        }
       }
-      this.nAnims[n] = new ImageData(width, height);
+      if (!nAnims[n]) {
+        nAnims[n] = new ImageData(width, height);
+      }
     }
 
     this["animPutRow"] = function(n, row, heap) {
-      this.nAnims[n].data.set(heap, row * this.animWidth * 4);
+      nAnims[n].data.set(heap, row * this.animWidth * 4);
     }
 
     this["animStartPlay"] = function() {
-      var anims = this.nAnims;
+      if (animStarted) {
+        return;
+      }
+      animStarted = true;
+
       var ctx = this.ctx;
       var currFrame = 0;
       var lastStep = 0;
       function step(now) {
         if (animPlay) {
           if ((now - lastStep) > 33) {
-            ctx.putImageData(anims[currFrame], 0, 0);
+            ctx.putImageData(nAnims[currFrame], 0, 0);
             currFrame++;
-            if (currFrame >= anims.length) {
+            if (currFrame >= nAnims.length) {
               currFrame = 0;
             }
             lastStep = now;
@@ -210,8 +230,6 @@
 
     "finishCanvasDraw": function() {
       this.cm.finish();
-      this.buf = undefined;
-      this.loaded();
     },
 
     "initAnimImage": function (n, aw, ah) {
@@ -225,6 +243,12 @@
 
     "finishAnimTx": function() {
       this.cm.animStartPlay();
+    },
+
+    "finishLoading": function() {
+      if (this.buf) {
+        this.buf = undefined;
+      }
       this.loaded(this.options);
     }
   }, pfBase));

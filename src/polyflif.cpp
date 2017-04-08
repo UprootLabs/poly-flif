@@ -1,15 +1,45 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
+#include <functional>
 
 #include "flif_config.h"
 #include "flif-dec.hpp"
 #include "bufferio.h"
 #include "polyflif.hpp"
 
+PolyFlif *globalPF;
+
+uint32_t previewCallback(int32_t quality, int64_t bytes) {
+  if (quality != 10000) {
+    globalPF->showPreviewImages();
+  }
+
+  return quality * 2;
+}
+
+
 int PolyFlif::startPercent(int truncatePercent, int rw, int rh) {
    const int size = bufGetSize();
    const int truncateCount = (truncatePercent == 0) ? -1 : size * (truncatePercent/100.0);
    return startCount(truncateCount, rw, rh);
+}
+
+void PolyFlif::showPreviewImages() {
+  showImages(previewImages, false);
+}
+
+void PolyFlif::showImages(Images &images, bool finishedLoading) {
+  if (images.size() > 1) {
+    transferAnim(images);
+  } else {
+    Image& firstImage = images[0];
+    prepareCanvas(firstImage.cols(), firstImage.rows());
+
+    showImageQuick(firstImage);
+  }
+  if (finishedLoading) {
+    finishLoading();
+  }
 }
 
 int PolyFlif::startCount(int truncation, int rw, int rh) {
@@ -28,24 +58,22 @@ int PolyFlif::startCount(int truncation, int rw, int rh) {
   options.resize_height = rh;
   options.fit = (rw != 0 || rh != 0) ? 1 : 0;
 
-  if (!flif_decode(bufio, images, options, md)) {
+  globalPF = this;
+
+  if (!flif_decode(bufio, images, &previewCallback, 200, previewImages, options, md)) {
+  // if (!flif_decode(bufio, images, options, md)) {
     return 3;
   }
 
-  Image& firstImage = images[0];
-  prepareCanvas(firstImage.cols(), firstImage.rows());
-
-  if (images.size() > 1) {
-    transferAnim(images);
-  } else {
-    showImageQuick(firstImage);
-  }
+  showImages(images, true);
 
   for (Image& img : images) {
     img.clear();
   }
 
   images.clear();
+  globalPF = nullptr;
+
   return 0;
 }
 
@@ -87,7 +115,7 @@ void PolyFlif::transferAnim(Images& images) {
     int numPlanes = firstImage.numPlanes();
 
     initAnimImage(n, iWidth, iHeight);
-  
+
     for (int i = 0; i < iHeight; i++) {
       for (int j = 0; j < iWidth; j++) {
         auto idx = j*4;
@@ -99,7 +127,7 @@ void PolyFlif::transferAnim(Images& images) {
       putRow(n, i, (int) rowData);
     }
   }
-  
+
   finishAnimTx();
 }
 
@@ -120,8 +148,13 @@ struct PolyFlifWrapper : public wrapper<PolyFlif> {
   void showRow(int row, int data, int width) const {
     return call<void>("showRow", row, data, width);
   }
+
   void finishCanvasDraw(void) const {
     return call<void>("finishCanvasDraw");
+  }
+
+  void finishLoading(void) const {
+    return call<void>("finishLoading");
   }
 
   void initAnimImage(int n, int aw, int ah) const {
