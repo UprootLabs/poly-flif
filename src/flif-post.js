@@ -1,4 +1,4 @@
-  var isAWorker = 'undefined' !== typeof WorkerGlobalScope;
+  var isAWorker = undefined !== typeof WorkerGlobalScope;
   var currScriptSrc = isAWorker ? null : document.currentScript.src;
 
   function DirectCanvasManager(canvas) {
