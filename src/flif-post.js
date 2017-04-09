@@ -1,5 +1,16 @@
   var isAWorker = "undefined" !== typeof WorkerGlobalScope;
-  var currScriptSrc = isAWorker ? null : document.currentScript.src;
+
+  function getCurrentScriptSrc() {
+    var currScript = document.currentScript;
+    if (currScript) {
+      return currScript.src;
+    } else {
+      var scripts = document.getElementsByTagName("script");
+      return scripts[scripts.length - 1].src;
+    }
+  }
+
+  var currScriptSrc = isAWorker ? null : getCurrentScriptSrc();
 
   function DirectCanvasManager(canvas) {
     var animPlay = true;
