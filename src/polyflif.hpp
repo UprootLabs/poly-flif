@@ -1,6 +1,7 @@
 #pragma once
 
 #include "image/image.hpp"
+#include "flif-dec.hpp"
 
 struct PolyFlif {
 public:
@@ -9,7 +10,7 @@ public:
 
   // Same as startCount, but first pararemter is a percentage of buffer size
   int startPercent(int truncatePercent, int rw, int rh);
-  void showPreviewImages();
+  uint32_t previewCallback(callback_info_t *info);
 
   virtual int bufGetSize() const = 0;
   virtual void readBuffer(int from, int ptr, int size) const = 0;
@@ -25,6 +26,8 @@ public:
 
 private:
   Images previewImages;
+  double lastPreviewTime = -0.4;
+  void showPreviewImages();
 
   void showImages(Images &images, bool finishedLoading);
   void transferAnim(Images& images);

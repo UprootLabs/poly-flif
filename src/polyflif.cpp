@@ -8,16 +8,18 @@
 #include "polyflif.hpp"
 #include <time.h>
 
-PolyFlif *globalPF;
-double lastPreviewTime = -0.4;
-
 // Returns current time in seconds
 double getCurrTime() {
   clock_t now = clock();
   return ((double) now) / CLOCKS_PER_SEC;
 }
 
-uint32_t previewCallback(callback_info_t *info, void *user_data) {
+uint32_t previewCallbackTrampoline(callback_info_t *info, void *user_data) {
+  PolyFlif *pf = (PolyFlif *) user_data;
+  return pf->previewCallback(info);
+}
+
+uint32_t PolyFlif::previewCallback(callback_info_t *info) {
   uint32_t quality = info->quality;
 
   if (quality != 10000) {
@@ -25,7 +27,7 @@ uint32_t previewCallback(callback_info_t *info, void *user_data) {
     if (elapsedTime > 0.4) {
       auto func = (std::function<void ()> *) info->populateContext;
       (*func)();
-      globalPF->showPreviewImages();
+      showPreviewImages();
       lastPreviewTime = getCurrTime();
     }
   }
@@ -74,9 +76,7 @@ int PolyFlif::startCount(int truncation, int rw, int rh) {
   options.resize_height = rh;
   options.fit = (rw != 0 || rh != 0) ? 1 : 0;
 
-  globalPF = this;
-
-  if (!flif_decode(bufio, images, &previewCallback, NULL, 200, previewImages, options, md)) {
+  if (!flif_decode(bufio, images, &previewCallbackTrampoline, this, 200, previewImages, options, md)) {
   // if (!flif_decode(bufio, images, options, md)) {
     return 3;
   }
@@ -88,7 +88,6 @@ int PolyFlif::startCount(int truncation, int rw, int rh) {
   }
 
   images.clear();
-  globalPF = nullptr;
 
   return 0;
 }
