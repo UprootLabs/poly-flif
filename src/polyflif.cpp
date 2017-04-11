@@ -6,12 +6,28 @@
 #include "flif-dec.hpp"
 #include "bufferio.h"
 #include "polyflif.hpp"
+#include <time.h>
 
 PolyFlif *globalPF;
+double lastPreviewTime = -0.4;
 
-uint32_t previewCallback(int32_t quality, int64_t bytes) {
+// Returns current time in seconds
+double getCurrTime() {
+  clock_t now = clock();
+  return ((double) now) / CLOCKS_PER_SEC;
+}
+
+uint32_t previewCallback(callback_info_t *info, void *user_data) {
+  uint32_t quality = info->quality;
+
   if (quality != 10000) {
-    globalPF->showPreviewImages();
+    double elapsedTime = getCurrTime() - lastPreviewTime;
+    if (elapsedTime > 0.4) {
+      auto func = (std::function<void ()> *) info->populateContext;
+      (*func)();
+      globalPF->showPreviewImages();
+      lastPreviewTime = getCurrTime();
+    }
   }
 
   return quality * 2;
@@ -60,7 +76,7 @@ int PolyFlif::startCount(int truncation, int rw, int rh) {
 
   globalPF = this;
 
-  if (!flif_decode(bufio, images, &previewCallback, 200, previewImages, options, md)) {
+  if (!flif_decode(bufio, images, &previewCallback, NULL, 200, previewImages, options, md)) {
   // if (!flif_decode(bufio, images, options, md)) {
     return 3;
   }
