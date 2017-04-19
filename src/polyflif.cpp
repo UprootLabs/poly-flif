@@ -22,7 +22,7 @@ uint32_t previewCallbackTrampoline(callback_info_t *info, void *user_data) {
 uint32_t PolyFlif::previewCallback(callback_info_t *info) {
   uint32_t quality = info->quality;
 
-  if (quality != 10000) {
+  if (quality < 6000) {
     double elapsedTime = getCurrTime() - lastPreviewTime;
     if (elapsedTime > 0.4) {
       auto func = (std::function<void ()> *) info->populateContext;
@@ -32,7 +32,7 @@ uint32_t PolyFlif::previewCallback(callback_info_t *info) {
     }
   }
 
-  return quality * 2;
+  return quality * 3;
 }
 
 
@@ -76,7 +76,7 @@ int PolyFlif::startCount(int truncation, int rw, int rh) {
   options.resize_height = rh;
   options.fit = (rw != 0 || rh != 0) ? 1 : 0;
 
-  if (!flif_decode(bufio, images, &previewCallbackTrampoline, this, 200, previewImages, options, md)) {
+  if (!flif_decode(bufio, images, &previewCallbackTrampoline, this, 100, previewImages, options, md)) {
   // if (!flif_decode(bufio, images, options, md)) {
     return 3;
   }
