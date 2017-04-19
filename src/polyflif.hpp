@@ -10,7 +10,7 @@ public:
 
   // Same as startCount, but first pararemter is a percentage of buffer size
   int startPercent(int truncatePercent, int rw, int rh);
-  uint32_t previewCallback(callback_info_t *info);
+  uint32_t previewCallback(uint32_t quality, int64_t bytes_read, uint8_t decode_over, void *user_data, void *context);
 
   virtual int bufGetSize() const = 0;
   virtual void readBuffer(int from, int ptr, int size) const = 0;

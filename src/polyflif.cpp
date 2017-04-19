@@ -14,18 +14,16 @@ double getCurrTime() {
   return ((double) now) / CLOCKS_PER_SEC;
 }
 
-uint32_t previewCallbackTrampoline(callback_info_t *info, void *user_data) {
+uint32_t previewCallbackTrampoline(uint32_t quality, int64_t bytes_read, uint8_t decode_over, void *user_data, void *context) {
   PolyFlif *pf = (PolyFlif *) user_data;
-  return pf->previewCallback(info);
+  return pf->previewCallback(quality, bytes_read, decode_over, user_data, context);
 }
 
-uint32_t PolyFlif::previewCallback(callback_info_t *info) {
-  uint32_t quality = info->quality;
-
-  if (quality < 6000) {
+uint32_t PolyFlif::previewCallback(uint32_t quality, int64_t bytes_read, uint8_t decode_over, void *user_data, void *context) {
+  if (quality < 6000 && (decode_over == 0)) {
     double elapsedTime = getCurrTime() - lastPreviewTime;
     if (elapsedTime > 0.4) {
-      auto func = (std::function<void ()> *) info->populateContext;
+      auto func = (std::function<void ()> *) context;
       (*func)();
       showPreviewImages();
       lastPreviewTime = getCurrTime();
