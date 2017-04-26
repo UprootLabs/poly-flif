@@ -35,19 +35,6 @@ limitations under the License.
 #include "common.hpp"
 #include "bufferio.h"
 
-/*
-static int truncatedSize = -1;
-
-bool isEOF(FILE *fp) {
-  if (truncatedSize < 0) {
-    return feof(fp);
-  } else {
-    int loc = ftell(fp);
-    return loc > truncatedSize;
-  }
-}
-*/
-
 #include "flif-dec.hpp"
 
 using namespace maniac::util;
