@@ -1415,9 +1415,5 @@ bool flif_decode(IO& io, Images &images, callback_t callback, void *user_data, i
     return true;
 }
 
-/*
-template bool flif_decode(BufferIO& io, Images &images, int quality, int scale,uint32_t (*callback)(int32_t,int64_t), int, Images &partial_images, int, int, int, bool, metadata_options &, FLIF_INFO* info);
-*/
-
 template bool flif_decode(BufferIO& io, Images &images, callback_t callback, void *user_data, int, Images &partial_images, flif_options &, metadata_options &, FLIF_INFO* info);
 
