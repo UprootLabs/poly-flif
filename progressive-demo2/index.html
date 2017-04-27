@@ -1,0 +1,36 @@
+<html>
+
+<head>
+<title>Poly-FLIF progressive demo</title>
+<script src="flif.js"></script>
+<style>
+
+@media (min-width:600px) {
+.block {
+display: inline-block;
+vertical-align: top;
+}
+.block + .block {
+margin-left: 2em;
+}
+
+}
+</style>
+</head>
+
+<body>
+<h2>Poly-FLIF progressive demo</h2>
+
+<div class="block">
+  <h3>Still Image</h3>
+  <canvas data-polyflif-src="../assets/1_webp_ll.flif"></canvas>
+</div>
+
+<div class="block">
+  <h3>Animation</h3>
+  <canvas data-polyflif-src="../assets/clock.flif"></canvas>
+</div>
+
+</body>
+
+</html>
