@@ -283,8 +283,7 @@
     }
 
   } else {
-    // window["PolyFlif"] = pfModule;
-    window["PolyFlif"] = pfProxyModule;
+    window["PolyFlif"] = hasWorkerSupport ? pfProxyModule : pfModule;
 
     document.addEventListener("DOMContentLoaded", function() {
       function load(src, bytes, andThen) {
