@@ -51,8 +51,8 @@
     }
 
     this["initAnimImage"] = function(n, aw, ah) {
-      var width = Math.max(this.rw, aw);
-      var height = Math.max(this.rh, ah);
+      var width = aw;
+      var height = ah;
 
       if (n == 0) {
         if (canvas.width != width) {
