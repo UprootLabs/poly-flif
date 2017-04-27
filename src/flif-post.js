@@ -1,4 +1,7 @@
   var isAWorker = "undefined" !== typeof WorkerGlobalScope;
+  var hasWorkerSupport = "undefined" !== typeof Worker;
+
+  var showPreviews = isAWorker || hasWorkerSupport;
 
   function getCurrentScriptSrc() {
     var currScript = document.currentScript;
@@ -152,12 +155,12 @@
   var pfBase = {
     "beginCount": function(truncation, rw, rh) {
       this.cm["setRequestedDimensions"](rw, rh);
-      this["startCount"](truncation, rw, rh);
+      this["startCount"](showPreviews, truncation, rw, rh);
     },
 
     "beginPercent": function(truncationPercent, rw, rh) {
       this.cm["setRequestedDimensions"](rw, rh);
-      this["startPercent"](truncationPercent, rw, rh);
+      this["startPercent"](showPreviews, truncationPercent, rw, rh);
     },
 
     "stop": function() {

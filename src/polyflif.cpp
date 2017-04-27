@@ -34,10 +34,10 @@ uint32_t PolyFlif::previewCallback(uint32_t quality, int64_t bytes_read, uint8_t
 }
 
 
-int PolyFlif::startPercent(int truncatePercent, int rw, int rh) {
+int PolyFlif::startPercent(bool showPreviews, int truncatePercent, int rw, int rh) {
    const int size = bufGetSize();
    const int truncateCount = (truncatePercent == 0) ? -1 : size * (truncatePercent/100.0);
-   return startCount(truncateCount, rw, rh);
+   return startCount(showPreviews, truncateCount, rw, rh);
 }
 
 void PolyFlif::showPreviewImages() {
@@ -58,7 +58,7 @@ void PolyFlif::showImages(Images &images, bool finishedLoading) {
   }
 }
 
-int PolyFlif::startCount(int truncation, int rw, int rh) {
+int PolyFlif::startCount(bool showPreviews, int truncation, int rw, int rh) {
   Images images;
   int quality = 100;
   int scale = 1;
@@ -74,8 +74,11 @@ int PolyFlif::startCount(int truncation, int rw, int rh) {
   options.resize_height = rh;
   options.fit = (rw != 0 || rh != 0) ? 1 : 0;
 
-  if (!flif_decode(bufio, images, &previewCallbackTrampoline, this, 100, previewImages, options, md)) {
-  // if (!flif_decode(bufio, images, options, md)) {
+  auto const success = showPreviews ?
+    flif_decode(bufio, images, &previewCallbackTrampoline, this, 100, previewImages, options, md) :
+    flif_decode(bufio, images, options, md);
+
+  if (!success) {
     return 3;
   }
 

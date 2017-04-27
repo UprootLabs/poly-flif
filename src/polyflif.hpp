@@ -6,10 +6,11 @@
 struct PolyFlif {
 public:
   // Starts decoding, with `truncation` number of bytes
-  int startCount(int truncation, int rw, int rh);
+  int startCount(bool showPreviews, int truncation, int rw, int rh);
 
   // Same as startCount, but first pararemter is a percentage of buffer size
-  int startPercent(int truncatePercent, int rw, int rh);
+  int startPercent(bool showPreviews, int truncatePercent, int rw, int rh);
+
   uint32_t previewCallback(uint32_t quality, int64_t bytes_read, uint8_t decode_over, void *user_data, void *context);
 
   virtual int bufGetSize() const = 0;
