@@ -35,7 +35,7 @@ void HackToReferencePrintEtc()
 typedef struct RGBA { uint8_t r,g,b,a; } RGBA;
 #pragma pack(pop)
 
-FLIF_DECODER* d = NULL;
+FLIF_DECODER* volatile d = NULL;
 SDL_Window* window = NULL;
 SDL_DisplayMode dm;
 SDL_DisplayMode ddm;
@@ -119,7 +119,7 @@ bool updateTextures(uint32_t quality, int64_t bytes_read) {
     // set the window title and size
     if (!window) { printf("Error: Could not create window\n"); return false; }
     char title[100];
-    sprintf(title,"FLIF image decoded at %ix%i [read %lli bytes, quality=%.2f%%]",w,h,(long long int) bytes_read, 0.01*quality);
+    sprintf(title,"FLIF image decoded at %ux%u [read %lli bytes, quality=%.2f%%]",w,h,(long long int) bytes_read, 0.01*quality);
     SDL_SetWindowTitle(window,title);
     if (!window_size_set) {
       int ww = (w > dm.w ? dm.w : w);
@@ -245,8 +245,9 @@ static int decodeThread(void * arg) {
 #endif
     if (!flif_decoder_decode_file(d, argv[1])) {
         printf("Error: decoding failed\n");
-        quit = 1;
         flif_destroy_decoder(d);
+        d = NULL;
+        quit = 1;
         return 1;
     }
 #ifndef PROGRESSIVE_DECODING
@@ -302,7 +303,7 @@ int main(int argc, char **argv) {
 #ifdef PROGRESSIVE_DECODING
     printf("Decoding progressively...\n");
     SDL_Thread *decode_thread = SDL_CreateThread(decodeThread,"Decode_FLIF",argv);
-    if (!decode_thread) {
+    if (NULL == decode_thread) {
         printf("Error: failed to create decode thread\n");
         return 1;
     }
