@@ -113,17 +113,16 @@ var options = {
 };
 var pf = new PolyFlif(options);
 
-var showPreviews = true;                              // boolean. previews are shown when true.
 var truncationPercent = 0;                            // in percent (0 to 100). 0 means no truncation.
 var truncationCount = -1;                             // in bytes (-1 means no truncation)
 var rw = 0;                                           // requested width (if 0, original image width is used)
 var rh = 0;                                           // requested height (if 0, original image height is used)
 
 // Either this version
-pf.beginPercent(showPreviews, truncationPercent, rw, rh);
+pf.beginPercent(truncationPercent, rw, rh);
 
 // Or this version
-pf.beginCount(showPreviews, truncationCount, rw, rh);
+pf.beginCount(truncationCount, rw, rh);
 </pre>
 
 </div>
