@@ -315,7 +315,7 @@
         load(src, bytes, function(content) {
           setTimeout(function() {
             var pf = new PolyFlif({"buf": content, "canvas": elem});
-            pf["beginCount"](-1, rw, rh);
+            pf["beginCount"](true, -1, rw, rh);
           }, 1);
         });
       }
@@ -332,7 +332,7 @@
           }
           setTimeout(function() {
             var pf = new PolyFlif({"buf": content, "canvas": cElem, onload: loaded});
-            pf["beginCount"](-1, 0, 0);
+            pf["beginCount"](true, -1, 0, 0);
           }, 1);
         });
       }
