@@ -51,3 +51,5 @@ em-out/flif.html: $(INPUTS)
 em-out-stillonly/flif.html: $(INPUTS)
 	${CXX} $(CXXFLAGS) -s TOTAL_MEMORY=33554432 -DSTILL_ONLY $(LDFLAGS) $(SRCS) -o em-out-stillonly/flif.html
 
+clean:
+	rm em-out/flif.html em-out-stillonly/flif.html em-out/flif.js em-out-stillonly/flif.js
