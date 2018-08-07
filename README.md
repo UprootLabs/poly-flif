@@ -36,7 +36,7 @@ GNU Lesser General Public License (LGPLv3+) in accordance with the upstream lice
 * Install [emscripten](https://github.com/kripken/emscripten/)
 * Install Java (for the closure compiler)
 * `cd src/`
-* `emmake make`
+* `emmake make -f Makefile-emscript`
 
 ### CLA
 When you send us a pull request, you acknowledge that
